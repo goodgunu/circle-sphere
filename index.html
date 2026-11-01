@@ -1,0 +1,36 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><title>Circle Packing Sphere</title>
+<style>html,body{margin:0;background:#000;overflow:hidden;touch-action:none}#g{position:fixed;top:calc(8px + env(safe-area-inset-top));right:8px;max-width:60vw}</style></head><body>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import GUI from 'https://unpkg.com/lil-gui@0.19/dist/lil-gui.esm.min.js';
+const P={speed:0.08,count:(innerWidth<700?500:700),glow:1.1,regenerate:()=>build()};
+const r=new THREE.WebGLRenderer({antialias:true});r.setPixelRatio(Math.min(devicePixelRatio,2));r.setSize(innerWidth,innerHeight);document.body.appendChild(r.domElement);
+const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,.1,100);cam.position.set(0,0,innerWidth<innerHeight?5.2:3.6);
+const ctl=new OrbitControls(cam,r.domElement);ctl.enableDamping=true;ctl.enablePan=false;
+const grp=new THREE.Group();scene.add(grp);
+grp.add(new THREE.Mesh(new THREE.SphereGeometry(0.995,96,64),new THREE.MeshBasicMaterial({color:0x050505})));
+const comp=new EffectComposer(r);comp.addPass(new RenderPass(scene,cam));
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),P.glow,0.5,0.1);comp.addPass(bloom);
+let rings=null;
+function pack(n){const M=12000,C=[],c=[];for(let i=0;i<M;i++){const z=Math.random()*2-1,t=Math.random()*6.2832,s=Math.sqrt(1-z*z);C.push([s*Math.cos(t),s*Math.sin(t),z]);}
+const mr=new Float32Array(M).fill(0.22);const out=[];
+for(let k=0;k<n;k++){let b=-1,bv=0.006;for(let i=0;i<M;i++)if(mr[i]>bv){bv=mr[i];b=i;}if(b<0)break;const p=C[b],R=bv*0.97;out.push([p,R]);
+for(let i=0;i<M;i++){const q=C[i];const a=Math.acos(Math.min(1,p[0]*q[0]+p[1]*q[1]+p[2]*q[2]))-R;if(a<mr[i])mr[i]=a;}}return out;}
+function build(){if(rings){grp.remove(rings);rings.geometry.dispose();}
+const L=pack(P.count);const geo=new THREE.CylinderGeometry(1,1,1,40,1,true);
+const m=new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide});
+rings=new THREE.InstancedMesh(geo,m,L.length);const o=new THREE.Object3D(),up=new THREE.Vector3(0,1,0);
+L.forEach(([p,R],i)=>{const v=new THREE.Vector3(...p);const rr=Math.sin(R)*0.9;o.position.copy(v).multiplyScalar(Math.cos(R)-0.01);o.quaternion.setFromUnitVectors(up,v);o.scale.set(rr,Math.max(0.012,rr*0.35),rr);o.updateMatrix();rings.setMatrixAt(i,o.matrix);});
+grp.add(rings);}
+build();
+const g=new GUI({container:document.body});g.domElement.id='g';
+g.add(P,'speed',0,0.6).name('rotation');g.add(P,'count',100,1500,10).name('rings').onFinishChange(build);
+g.add(P,'glow',0,3).onChange(v=>bloom.strength=v);g.add(P,'regenerate');if(innerWidth<700)g.close();
+addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();r.setSize(innerWidth,innerHeight);comp.setSize(innerWidth,innerHeight);bloom.setSize(innerWidth,innerHeight);});
+const clk=new THREE.Clock();(function f(){requestAnimationFrame(f);grp.rotation.y+=P.speed*clk.getDelta();ctl.update();comp.render();})();
+</script></body></html>
