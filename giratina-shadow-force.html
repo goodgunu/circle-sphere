@@ -1,0 +1,2534 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>シャドーダイブ — Giratina Shadow Force</title>
+<style>
+  :root {
+    --bar-h: clamp(24px, 4.4vh, 46px);
+    --ink: #ece8f8;
+    --ink-dim: rgba(214, 204, 240, 0.56);
+    --violet: #a864ff;
+    --crimson: #ff274b;
+    --gold: #e7bd58;
+  }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #050409;
+    color: var(--ink);
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", Georgia, serif;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #stage {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Cinematic letterbox bars */
+  .letterbox {
+    position: fixed;
+    left: 0;
+    right: 0;
+    height: var(--bar-h);
+    background: linear-gradient(to bottom, rgba(4, 3, 8, 0.96), rgba(7, 5, 13, 0.88));
+    z-index: 10;
+    pointer-events: none;
+  }
+  .letterbox.top {
+    top: 0;
+    border-bottom: 1px solid rgba(168, 100, 255, 0.14);
+  }
+  .letterbox.bottom {
+    bottom: 0;
+    background: linear-gradient(to top, rgba(4, 3, 8, 0.96), rgba(7, 5, 13, 0.88));
+    border-top: 1px solid rgba(168, 100, 255, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 clamp(16px, 3vw, 40px);
+    gap: 16px;
+  }
+
+  /* Subtle vignette overlay */
+  .vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+    background: radial-gradient(
+      ellipse at 50% 50%,
+      rgba(0, 0, 0, 0) 54%,
+      rgba(5, 3, 12, 0.45) 84%,
+      rgba(3, 2, 7, 0.82) 100%
+    );
+  }
+
+  /* Top-left title lockup */
+  .title-lockup {
+    position: fixed;
+    top: calc(var(--bar-h) + clamp(14px, 2.4vh, 26px));
+    left: clamp(18px, 3vw, 42px);
+    z-index: 12;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+  }
+  .title-eyebrow {
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    font-size: clamp(9px, 0.85vw, 11px);
+    letter-spacing: 0.34em;
+    color: rgba(224, 198, 255, 0.56);
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .title-eyebrow::before {
+    content: "";
+    display: inline-block;
+    width: 18px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--gold), rgba(168, 100, 255, 0.25));
+  }
+  .title-main {
+    font-size: clamp(20px, 2.5vw, 34px);
+    font-weight: 600;
+    letter-spacing: 0.26em;
+    line-height: 1.15;
+    color: #f3effc;
+    text-shadow:
+      0 0 18px rgba(154, 82, 255, 0.55),
+      0 0 38px rgba(112, 42, 210, 0.32),
+      0 2px 10px rgba(0, 0, 0, 0.85);
+  }
+  .title-sub {
+    margin-top: 4px;
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: clamp(9px, 0.8vw, 10.5px);
+    letter-spacing: 0.32em;
+    color: rgba(231, 189, 88, 0.68);
+    text-transform: uppercase;
+  }
+
+  /* Subtle top-right Distortion World coordinate accent */
+  .meta-corner {
+    position: fixed;
+    top: calc(var(--bar-h) + clamp(16px, 2.5vh, 28px));
+    right: clamp(18px, 3vw, 42px);
+    z-index: 12;
+    pointer-events: none;
+    text-align: right;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: clamp(9px, 0.8vw, 10.5px);
+    letter-spacing: 0.2em;
+    color: rgba(206, 192, 238, 0.42);
+    line-height: 1.65;
+  }
+  .meta-corner .accent {
+    color: rgba(255, 76, 110, 0.68);
+  }
+
+  /* Climax move title callout (appears briefly on Shadow Force strike) */
+  .climax-banner {
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--bar-h) + clamp(28px, 6vh, 66px));
+    transform: translateX(-50%) scale(0.96);
+    z-index: 12;
+    pointer-events: none;
+    text-align: center;
+    opacity: 0;
+    will-change: opacity, transform;
+  }
+  .climax-rule {
+    width: clamp(160px, 28vw, 360px);
+    height: 1px;
+    margin: 0 auto 10px;
+    background: linear-gradient(
+      90deg,
+      rgba(168, 100, 255, 0) 0%,
+      rgba(231, 189, 88, 0.85) 30%,
+      rgba(255, 255, 255, 0.95) 50%,
+      rgba(231, 189, 88, 0.85) 70%,
+      rgba(168, 100, 255, 0) 100%
+    );
+    box-shadow: 0 0 14px rgba(180, 105, 255, 0.85);
+  }
+  .climax-text {
+    font-size: clamp(22px, 3.4vw, 46px);
+    font-weight: 700;
+    letter-spacing: 0.42em;
+    padding-left: 0.42em;
+    color: #fbf8ff;
+    text-shadow:
+      0 0 14px rgba(255, 255, 255, 0.75),
+      0 0 32px rgba(168, 78, 255, 0.92),
+      0 0 64px rgba(255, 36, 78, 0.55);
+  }
+  .climax-sub {
+    margin-top: 6px;
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: clamp(9px, 0.9vw, 12px);
+    letter-spacing: 0.52em;
+    padding-left: 0.52em;
+    color: rgba(236, 206, 255, 0.8);
+    text-transform: uppercase;
+  }
+
+  /* Bottom bar subtle status UI */
+  .phase-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    font-size: clamp(10px, 0.88vw, 11.5px);
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    white-space: nowrap;
+  }
+  .phase-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--violet);
+    box-shadow: 0 0 10px var(--violet);
+    transition: background 0.4s ease, box-shadow 0.4s ease;
+  }
+  .phase-dot.crimson {
+    background: var(--crimson);
+    box-shadow: 0 0 12px var(--crimson);
+  }
+  .phase-dot.gold {
+    background: var(--gold);
+    box-shadow: 0 0 10px var(--gold);
+  }
+  .progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 1 240px;
+    justify-content: flex-end;
+  }
+  .progress-track {
+    position: relative;
+    flex: 1;
+    max-width: 180px;
+    height: 2px;
+    background: rgba(190, 174, 232, 0.16);
+    border-radius: 2px;
+    overflow: visible;
+  }
+  .progress-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: linear-gradient(90deg, rgba(146, 84, 245, 0.65), rgba(235, 194, 98, 0.95));
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(176, 104, 255, 0.7);
+  }
+  .act-pips {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .act-pip {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(200, 188, 236, 0.22);
+    transition: background 0.35s ease, transform 0.35s ease, box-shadow 0.35s ease;
+  }
+  .act-pip.active {
+    background: rgba(242, 224, 255, 0.92);
+    transform: scale(1.35);
+    box-shadow: 0 0 8px rgba(176, 108, 255, 0.9);
+  }
+  .act-pip.active.crimson {
+    background: #ff4a6c;
+    box-shadow: 0 0 10px rgba(255, 39, 75, 0.95);
+  }
+
+  @media (max-width: 640px) {
+    .meta-corner {
+      display: none;
+    }
+    .progress-track {
+      max-width: 96px;
+    }
+  }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div class="vignette"></div>
+
+<div class="letterbox top"></div>
+
+<header class="title-lockup" id="titleLockup">
+  <div class="title-eyebrow">DISTORTION WORLD // NO.487</div>
+  <h1 class="title-main">シャドーダイブ</h1>
+  <div class="title-sub">GIRATINA · SHADOW FORCE</div>
+</header>
+
+<aside class="meta-corner" id="metaCorner">
+  <div>REALM // やぶれた世界</div>
+  <div>FORM // <span class="accent">ORIGIN</span></div>
+</aside>
+
+<div class="climax-banner" id="climaxBanner" aria-hidden="true">
+  <div class="climax-rule"></div>
+  <div class="climax-text">シャドーダイブ</div>
+  <div class="climax-sub">SHADOW FORCE</div>
+</div>
+
+<footer class="letterbox bottom">
+  <div class="phase-group">
+    <span class="phase-dot" id="phaseDot"></span>
+    <span id="phaseLabel">I. やぶれた世界 — 潜行</span>
+  </div>
+  <div class="progress-wrap">
+    <div class="act-pips" id="actPips">
+      <span class="act-pip active"></span>
+      <span class="act-pip"></span>
+      <span class="act-pip"></span>
+      <span class="act-pip"></span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+
+  // =========================================================================
+  // Core Configuration & Math Utilities
+  // =========================================================================
+  const LOOP_DURATION = 26.0; // Seamless 26-second cinematic loop
+  const TWO_PI = Math.PI * 2;
+
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d', { alpha: false });
+
+  // Offscreen multi-scale bloom buffers for crisp luminous glow
+  const bloomA = document.createElement('canvas');
+  const bCtxA = bloomA.getContext('2d');
+  const bloomB = document.createElement('canvas');
+  const bCtxB = bloomB.getContext('2d');
+
+  // Offscreen scratch layer for Giratina ghostly translucency & rift clipping
+  const entityCanvas = document.createElement('canvas');
+  const eCtx = entityCanvas.getContext('2d');
+
+  // Pre-rendered soft mist cloud sprite
+  const cloudSprite = document.createElement('canvas');
+  cloudSprite.width = 256;
+  cloudSprite.height = 256;
+  const cCtx = cloudSprite.getContext('2d');
+  (() => {
+    const g = cCtx.createRadialGradient(128, 128, 10, 128, 128, 124);
+    g.addColorStop(0, 'rgba(138, 102, 186, 0.32)');
+    g.addColorStop(0.45, 'rgba(92, 68, 134, 0.16)');
+    g.addColorStop(1, 'rgba(30, 22, 48, 0)');
+    cCtx.fillStyle = g;
+    cCtx.fillRect(0, 0, 256, 256);
+  })();
+
+  // UI DOM handles
+  const progressFill = document.getElementById('progressFill');
+  const phaseLabel = document.getElementById('phaseLabel');
+  const phaseDot = document.getElementById('phaseDot');
+  const actPips = Array.from(document.querySelectorAll('#actPips .act-pip'));
+  const climaxBanner = document.getElementById('climaxBanner');
+  const titleLockup = document.getElementById('titleLockup');
+  const metaCorner = document.getElementById('metaCorner');
+
+  // Seeded PRNG for art-directed deterministic Distortion World geometry
+  function createRng(seed) {
+    let s = seed >>> 0;
+    return () => {
+      s = (s + 0x6D2B79F5) >>> 0;
+      let t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smoothstep = (e0, e1, x) => {
+    const t = clamp((x - e0) / (e1 - e0), 0, 1);
+    return t * t * (3 - 2 * t);
+  };
+  const smootherstep = (e0, e1, x) => {
+    const t = clamp((x - e0) / (e1 - e0), 0, 1);
+    return t * t * t * (t * (t * 6 - 15) + 10);
+  };
+  const easeOutCubic = t => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+  const easeInCubic = t => Math.pow(clamp(t, 0, 1), 3);
+  const easeOutExpo = t => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * clamp(t, 0, 1)));
+  const easeInOutQuart = t => {
+    const x = clamp(t, 0, 1);
+    return x < 0.5 ? 8 * x * x * x * x : 1 - Math.pow(-2 * x + 2, 4) / 2;
+  };
+
+  // =========================================================================
+  // Viewport Management
+  // =========================================================================
+  let W = 1280;
+  let H = 720;
+  let DPR = 1;
+  let unit = 1; // responsive scale factor
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    unit = Math.min(W / 1280, H / 720);
+    if (W < H) {
+      unit = Math.min(W / 680, H / 900);
+    }
+
+    canvas.width = Math.max(1, Math.floor(W * DPR));
+    canvas.height = Math.max(1, Math.floor(H * DPR));
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    entityCanvas.width = canvas.width;
+    entityCanvas.height = canvas.height;
+    eCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    // Quarter-res & eighth-res bloom buffers
+    bloomA.width = Math.max(1, Math.floor(W * 0.28));
+    bloomA.height = Math.max(1, Math.floor(H * 0.28));
+    bloomB.width = Math.max(1, Math.floor(W * 0.14));
+    bloomB.height = Math.max(1, Math.floor(H * 0.14));
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // =========================================================================
+  // Distortion World Procedural Assets (Deterministic & Loop-Synced)
+  // =========================================================================
+  const rng = createRng(48701);
+
+  // Drifting cosmic void mist clouds (periodic orbit synced to LOOP_DURATION)
+  const voidClouds = Array.from({ length: 14 }, (_, i) => ({
+    x: rng(),
+    y: rng(),
+    rx: 0.22 + rng() * 0.28,
+    ry: 0.14 + rng() * 0.2,
+    orbitX: 0.018 + rng() * 0.025,
+    orbitY: 0.012 + rng() * 0.018,
+    phase: rng() * TWO_PI,
+    freq: 1 + (i % 2),
+    alpha: 0.22 + rng() * 0.28,
+    hueShift: rng()
+  }));
+
+  // Distant impossible-gravity monoliths & platforms (sideways, tilted, inverted)
+  const monoliths = Array.from({ length: 16 }, (_, i) => ({
+    x: 0.04 + (i / 16) * 0.94 + (rng() - 0.5) * 0.05,
+    y: 0.1 + rng() * 0.8,
+    w: 22 + rng() * 54,
+    h: 55 + rng() * 145,
+    angle: (i % 3 === 0 ? Math.PI * 0.5 : i % 3 === 1 ? Math.PI : 0) + (rng() - 0.5) * 0.28,
+    depth: 0.25 + rng() * 0.35,
+    bobAmp: 4 + rng() * 9,
+    bobPhase: rng() * TWO_PI,
+    freq: 1 + (i % 2),
+    veins: rng() > 0.45
+  }));
+
+  // Hero Floating Islands (including inverted upper islands and upside-down waterfall sources)
+  const islands = [
+    // Far-left mid island with major upside-down waterfall
+    {
+      x: 0.14, y: 0.69, w: 230, h: 115, depth: 0.72, inverted: false,
+      bobAmp: 9, bobPhase: 0.4, freq: 1,
+      waterfall: { offsetX: 0.12, width: 28, height: 390, speed: 1.0 },
+      spires: [{ dx: -0.32, h: 58 }, { dx: -0.18, h: 36 }],
+      shards: 4
+    },
+    // Right lower-mid island with tall upside-down waterfall
+    {
+      x: 0.86, y: 0.73, w: 265, h: 128, depth: 0.78, inverted: false,
+      bobAmp: 11, bobPhase: 2.3, freq: 1,
+      waterfall: { offsetX: -0.18, width: 34, height: 430, speed: 1.15 },
+      spires: [{ dx: 0.25, h: 64 }, { dx: 0.38, h: 42 }],
+      shards: 5
+    },
+    // Center-distant lower island with delicate upward waterfall
+    {
+      x: 0.52, y: 0.83, w: 185, h: 82, depth: 0.46, inverted: false,
+      bobAmp: 6, bobPhase: 4.1, freq: 2,
+      waterfall: { offsetX: 0.05, width: 17, height: 270, speed: 0.85 },
+      spires: [{ dx: -0.22, h: 34 }],
+      shards: 3
+    },
+    // Inverted floating island hanging in upper-left void
+    {
+      x: 0.22, y: 0.19, w: 205, h: 92, depth: 0.62, inverted: true,
+      bobAmp: 8, bobPhase: 1.5, freq: 1,
+      waterfall: null,
+      spires: [{ dx: 0.14, h: 46 }, { dx: -0.25, h: 32 }],
+      shards: 4
+    },
+    // Inverted floating island hanging in upper-right void
+    {
+      x: 0.81, y: 0.22, w: 175, h: 78, depth: 0.54, inverted: true,
+      bobAmp: 7, bobPhase: 3.7, freq: 2,
+      waterfall: null,
+      spires: [{ dx: -0.16, h: 38 }],
+      shards: 3
+    },
+    // Far-right background island with thin upward cascade
+    {
+      x: 0.69, y: 0.58, w: 130, h: 56, depth: 0.36, inverted: false,
+      bobAmp: 5, bobPhase: 5.0, freq: 1,
+      waterfall: { offsetX: 0.08, width: 12, height: 220, speed: 0.9 },
+      spires: [],
+      shards: 2
+    },
+    // Far-left background island
+    {
+      x: 0.31, y: 0.54, w: 118, h: 52, depth: 0.34, inverted: false,
+      bobAmp: 5, bobPhase: 0.9, freq: 2,
+      waterfall: null,
+      spires: [{ dx: 0.05, h: 28 }],
+      shards: 2
+    }
+  ];
+
+  // Pre-build craggy, angular Distortion World floating island silhouettes
+  islands.forEach((isl) => {
+    const topPts = [
+      { x: -1.02, y: -0.14 },
+      { x: -0.76, y: -0.22 },
+      { x: -0.42, y: -0.24 },
+      { x: -0.10, y: -0.21 },
+      { x: 0.24, y: -0.25 },
+      { x: 0.62, y: -0.22 },
+      { x: 0.92, y: -0.17 },
+      { x: 1.04, y: -0.11 }
+    ].map(p => ({
+      x: p.x + (rng() - 0.5) * 0.05,
+      y: p.y + (rng() - 0.5) * 0.03
+    }));
+    const pts = [...topPts];
+    // Asymmetric stepped crystalline rocky underside
+    const bottomSteps = [
+      { x: 0.94, y: 0.08 },
+      { x: 0.72, y: 0.22 },
+      { x: 0.60, y: 0.48 },
+      { x: 0.34, y: 0.66 },
+      { x: 0.22, y: 0.94 },
+      { x: 0.02, y: 1.08 },
+      { x: -0.18, y: 0.84 },
+      { x: -0.34, y: 0.68 },
+      { x: -0.58, y: 0.44 },
+      { x: -0.82, y: 0.26 },
+      { x: -0.96, y: 0.06 }
+    ];
+    bottomSteps.forEach(p => {
+      pts.push({
+        x: p.x + (rng() - 0.5) * 0.09,
+        y: p.y + (rng() - 0.5) * 0.09
+      });
+    });
+    isl.poly = pts;
+    isl.topPts = topPts;
+
+    // Small orbiting rock shards around each island
+    isl.shardList = Array.from({ length: isl.shards }, (_, k) => ({
+      dx: (rng() - 0.5) * 1.45,
+      dy: 0.25 + rng() * 0.95,
+      size: 4 + rng() * 10,
+      rot: rng() * TWO_PI,
+      phase: rng() * TWO_PI,
+      freq: 1 + (k % 2)
+    }));
+
+    // Waterfall droplets / streaks (loop-synced)
+    if (isl.waterfall) {
+      isl.waterfall.streaks = Array.from({ length: 14 }, () => ({
+        rx: (rng() - 0.5) * 0.85,
+        offset: rng(),
+        len: 0.08 + rng() * 0.16,
+        alpha: 0.25 + rng() * 0.5,
+        w: 1 + rng() * 2.4
+      }));
+      isl.waterfall.mists = Array.from({ length: 18 }, () => ({
+        rx: (rng() - 0.5) * 1.6,
+        offset: rng(),
+        r: 2 + rng() * 6,
+        drift: (rng() - 0.5) * 18
+      }));
+    }
+  });
+
+  // Ambient floating void motes (loop-synced upward drift)
+  const voidMotes = Array.from({ length: 85 }, (_, i) => ({
+    x: rng(),
+    y: rng(),
+    size: 0.8 + rng() * 2.4,
+    speedY: (1 + (i % 3)) / LOOP_DURATION,
+    swayAmp: 0.006 + rng() * 0.015,
+    swayPhase: rng() * TWO_PI,
+    colorType: rng(),
+    twinklePhase: rng() * TWO_PI,
+    twinkleFreq: 2 + (i % 4)
+  }));
+
+  // Dimensional fracture cracks (for Act 2 -> Act 3 shatter, framing the glowing eyes)
+  const crackRng = createRng(99487);
+  const shatterCracks = Array.from({ length: 16 }, (_, i) => {
+    const baseAngle = (i / 16) * TWO_PI + (crackRng() - 0.5) * 0.22;
+    const segs = [];
+    // Start slightly outside the glowing eye focal zone so the eyes remain sharp inside the fracture
+    const startR = 0.085 + crackRng() * 0.045;
+    let cx = Math.cos(baseAngle) * startR * 1.35;
+    let cy = Math.sin(baseAngle) * startR * 0.82;
+    let ang = baseAngle;
+    const count = 6 + Math.floor(crackRng() * 4);
+    for (let s = 0; s < count; s++) {
+      const len = 0.068 + crackRng() * 0.11;
+      ang += (crackRng() - 0.5) * 0.42;
+      const nx = cx + Math.cos(ang) * len;
+      const ny = cy + Math.sin(ang) * len;
+      segs.push({ x1: cx, y1: cy, x2: nx, y2: ny });
+      // Occasional fork branch
+      if (s >= 1 && crackRng() > 0.54) {
+        const bang = ang + (crackRng() > 0.5 ? 0.52 : -0.52);
+        const blen = len * (0.55 + crackRng() * 0.48);
+        segs.push({
+          x1: nx, y1: ny,
+          x2: nx + Math.cos(bang) * blen,
+          y2: ny + Math.sin(bang) * blen,
+          branch: true
+        });
+      }
+      cx = nx;
+      cy = ny;
+    }
+    return { segs, delay: (i % 5) * 0.06 };
+  });
+
+  // Blast debris & purple-black flame sparks for Act 3 (deterministic)
+  const blastRng = createRng(48777);
+  const blastParticles = Array.from({ length: 140 }, () => {
+    const ang = blastRng() * TWO_PI;
+    return {
+      ang,
+      speed: 0.24 + blastRng() * 0.92,
+      size: 2 + blastRng() * 11,
+      type: blastRng(), // <0.35 dark shard, <0.75 violet plasma spark, else crimson ember
+      spin: (blastRng() - 0.5) * 9,
+      delay: blastRng() * 0.42,
+      curve: (blastRng() - 0.5) * 0.9
+    };
+  });
+
+  // Swirling shadow vortex ribbons for Act 3 blast
+  const vortexRibbons = Array.from({ length: 12 }, (_, i) => ({
+    baseAng: (i / 12) * TWO_PI,
+    twist: (i % 2 === 0 ? 1 : -1) * (1.8 + (i % 3) * 0.45),
+    width: 10 + (i % 4) * 7,
+    isCrimson: i % 4 === 0,
+    delay: (i % 3) * 0.08
+  }));
+
+  // =========================================================================
+  // Distortion World Renderer
+  // =========================================================================
+  function drawDistortionWorld(g, bg, t, loopPhase, state) {
+    const { blastGlow, darkness } = state;
+
+    // 1. Void gradient sky (purple -> charcoal-gray abyss)
+    const skyGrad = g.createLinearGradient(0, 0, 0, H);
+    skyGrad.addColorStop(0.0, '#090712');
+    skyGrad.addColorStop(0.28, '#171127');
+    skyGrad.addColorStop(0.56, '#261e38');
+    skyGrad.addColorStop(0.82, '#1b1726');
+    skyGrad.addColorStop(1.0, '#0b0912');
+    g.fillStyle = skyGrad;
+    g.fillRect(-80, -80, W + 160, H + 160);
+
+    // Subtle atmospheric purple nebula glow in center-back
+    const nebX = W * (0.5 + Math.sin(loopPhase) * 0.04);
+    const nebY = H * (0.46 + Math.cos(loopPhase) * 0.03);
+    const nebGrad = g.createRadialGradient(nebX, nebY, 10, nebX, nebY, Math.max(W, H) * 0.62);
+    nebGrad.addColorStop(0, `rgba(116, 78, 174, ${0.22 + blastGlow * 0.35})`);
+    nebGrad.addColorStop(0.45, `rgba(68, 52, 104, ${0.14 + blastGlow * 0.16})`);
+    nebGrad.addColorStop(1, 'rgba(10, 8, 18, 0)');
+    g.fillStyle = nebGrad;
+    g.fillRect(-80, -80, W + 160, H + 160);
+
+    // 2. Drifting volumetric void clouds
+    g.save();
+    for (let i = 0; i < voidClouds.length; i++) {
+      const c = voidClouds[i];
+      const cx = (c.x + Math.sin(loopPhase * c.freq + c.phase) * c.orbitX) * W;
+      const cy = (c.y + Math.cos(loopPhase * c.freq + c.phase) * c.orbitY) * H;
+      const rw = c.rx * W;
+      const rh = c.ry * H;
+      g.globalAlpha = c.alpha * (1 - darkness * 0.72);
+      g.drawImage(cloudSprite, cx - rw, cy - rh, rw * 2, rh * 2);
+    }
+    g.restore();
+
+    // 3. Distant impossible-gravity monoliths & tilted platforms
+    g.save();
+    for (let i = 0; i < monoliths.length; i++) {
+      const m = monoliths[i];
+      const mx = m.x * W;
+      const my = m.y * H + Math.sin(loopPhase * m.freq + m.bobPhase) * m.bobAmp * unit;
+      const mw = m.w * unit;
+      const mh = m.h * unit;
+      g.save();
+      g.translate(mx, my);
+      g.rotate(m.angle);
+      const mg = g.createLinearGradient(-mw * 0.5, -mh * 0.5, mw * 0.5, mh * 0.5);
+      mg.addColorStop(0, `rgba(54, 45, 76, ${0.32 * m.depth + 0.16})`);
+      mg.addColorStop(1, `rgba(18, 14, 28, ${0.52 * m.depth + 0.2})`);
+      g.fillStyle = mg;
+      g.beginPath();
+      g.moveTo(-mw * 0.5, -mh * 0.45);
+      g.lineTo(mw * 0.48, -mh * 0.5);
+      g.lineTo(mw * 0.36, mh * 0.44);
+      g.lineTo(0, mh * 0.54);
+      g.lineTo(-mw * 0.42, mh * 0.38);
+      g.closePath();
+      g.fill();
+
+      // Faint violet edge highlight
+      g.strokeStyle = `rgba(164, 126, 232, ${0.14 + blastGlow * 0.28})`;
+      g.lineWidth = 1;
+      g.stroke();
+
+      if (m.veins) {
+        g.strokeStyle = `rgba(178, 118, 255, ${0.12 + blastGlow * 0.25})`;
+        g.beginPath();
+        g.moveTo(-mw * 0.15, -mh * 0.3);
+        g.lineTo(mw * 0.08, 0);
+        g.lineTo(-mw * 0.06, mh * 0.28);
+        g.stroke();
+      }
+      g.restore();
+    }
+    g.restore();
+
+    // 4. Floating islands & upside-down waterfalls sorted back-to-front by depth
+    const sortedIslands = [...islands].sort((a, b) => a.depth - b.depth);
+    for (let i = 0; i < sortedIslands.length; i++) {
+      drawFloatingIsland(g, bg, sortedIslands[i], t, loopPhase, state);
+    }
+
+    // 5. Ambient floating void dust motes
+    g.save();
+    for (let i = 0; i < voidMotes.length; i++) {
+      const p = voidMotes[i];
+      // Seamless vertical upward wrap synchronized to LOOP_DURATION
+      const fy = ((p.y - t * p.speedY) % 1 + 1) % 1;
+      const fx = p.x + Math.sin(loopPhase + p.swayPhase) * p.swayAmp;
+      const px = fx * W;
+      const py = fy * H;
+      const tw = 0.45 + 0.55 * Math.sin(loopPhase * p.twinkleFreq + p.twinklePhase);
+      const alpha = tw * 0.65 * (1 - darkness * 0.7);
+      if (alpha <= 0.02) continue;
+
+      if (p.colorType < 0.6) {
+        g.fillStyle = `rgba(196, 174, 244, ${alpha})`;
+      } else if (p.colorType < 0.88) {
+        g.fillStyle = `rgba(154, 108, 255, ${alpha})`;
+      } else {
+        g.fillStyle = `rgba(255, 92, 128, ${alpha * 0.85})`;
+      }
+      g.beginPath();
+      g.arc(px, py, p.size * unit, 0, TWO_PI);
+      g.fill();
+    }
+    g.restore();
+  }
+
+  function drawFloatingIsland(g, bg, isl, t, loopPhase, state) {
+    const { blastGlow, darkness } = state;
+    const cx = isl.x * W;
+    const bob = Math.sin(loopPhase * isl.freq + isl.bobPhase) * isl.bobAmp * unit;
+    const cy = isl.y * H + bob;
+    const iw = isl.w * unit;
+    const ih = isl.h * unit;
+    const flipY = isl.inverted ? -1 : 1;
+
+    // Draw upside-down waterfall FIRST (rising upward from the island into the void)
+    if (isl.waterfall) {
+      drawUpsideDownWaterfall(g, bg, isl, cx, cy, iw, ih, t, loopPhase, state);
+    }
+
+    g.save();
+    g.translate(cx, cy);
+    g.scale(1, flipY);
+
+    // Twisted dead Distortion World spires/trees on top of plateau
+    for (let s = 0; s < isl.spires.length; s++) {
+      const sp = isl.spires[s];
+      const sx = sp.dx * iw;
+      const sy = -0.22 * ih;
+      const sh = sp.h * unit;
+      g.strokeStyle = `rgba(38, 30, 56, ${0.72 + isl.depth * 0.25})`;
+      g.lineWidth = Math.max(1.5, 4.2 * unit * isl.depth);
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(sx, sy);
+      g.quadraticCurveTo(sx - 6 * unit, sy - sh * 0.5, sx + 5 * unit, sy - sh);
+      g.stroke();
+
+      // Twisted angular branches
+      g.lineWidth = Math.max(1, 2.1 * unit * isl.depth);
+      g.beginPath();
+      g.moveTo(sx - 1 * unit, sy - sh * 0.55);
+      g.lineTo(sx - 14 * unit, sy - sh * 0.78);
+      g.moveTo(sx + 2 * unit, sy - sh * 0.72);
+      g.lineTo(sx + 15 * unit, sy - sh * 0.92);
+      g.stroke();
+    }
+
+    // Island main rock body
+    g.beginPath();
+    for (let i = 0; i < isl.poly.length; i++) {
+      const p = isl.poly[i];
+      const px = p.x * iw * 0.5;
+      const py = p.y * ih;
+      if (i === 0) g.moveTo(px, py);
+      else g.lineTo(px, py);
+    }
+    g.closePath();
+
+    const rockGrad = g.createLinearGradient(0, -ih * 0.3, 0, ih * 1.1);
+    const bright = 0.55 + isl.depth * 0.45;
+    rockGrad.addColorStop(0, `rgb(${Math.round(62 * bright)}, ${Math.round(54 * bright)}, ${Math.round(82 * bright)})`);
+    rockGrad.addColorStop(0.32, `rgb(${Math.round(36 * bright)}, ${Math.round(30 * bright)}, ${Math.round(52 * bright)})`);
+    rockGrad.addColorStop(1, `rgb(${Math.round(14 * bright)}, ${Math.round(11 * bright)}, ${Math.round(22 * bright)})`);
+    g.fillStyle = rockGrad;
+    g.fill();
+
+    // Faceted rock bevel lines for crystalline Distortion World look
+    g.strokeStyle = `rgba(148, 120, 206, ${0.18 * isl.depth + blastGlow * 0.32})`;
+    g.lineWidth = 1.1;
+    g.beginPath();
+    g.moveTo(-iw * 0.32, 0.05 * ih);
+    g.lineTo(-iw * 0.1, 0.52 * ih);
+    g.lineTo(iw * 0.02, 1.02 * ih);
+    g.moveTo(iw * 0.28, 0.06 * ih);
+    g.lineTo(iw * 0.14, 0.48 * ih);
+    g.lineTo(iw * 0.02, 1.02 * ih);
+    g.stroke();
+
+    // Glowing eerie violet crystal vein along underside
+    g.strokeStyle = `rgba(176, 108, 255, ${(0.22 + blastGlow * 0.5) * (1 - darkness * 0.65)})`;
+    g.lineWidth = 1.6 * unit;
+    g.beginPath();
+    g.moveTo(-iw * 0.14, 0.24 * ih);
+    g.lineTo(-iw * 0.03, 0.54 * ih);
+    g.lineTo(iw * 0.08, 0.72 * ih);
+    g.stroke();
+
+    // Pale ghostly lavender-gray top plateau surface
+    g.beginPath();
+    for (let i = 0; i < isl.topPts.length; i++) {
+      const p = isl.topPts[i];
+      const px = p.x * iw * 0.5;
+      const py = p.y * ih;
+      if (i === 0) g.moveTo(px, py);
+      else g.lineTo(px, py);
+    }
+    for (let i = isl.topPts.length - 1; i >= 0; i--) {
+      const p = isl.topPts[i];
+      const px = p.x * iw * 0.48;
+      const py = (p.y + 0.16) * ih;
+      g.lineTo(px, py);
+    }
+    g.closePath();
+    const topGrad = g.createLinearGradient(0, -ih * 0.32, 0, ih * 0.08);
+    topGrad.addColorStop(0, `rgba(162, 152, 194, ${0.42 + isl.depth * 0.32 + blastGlow * 0.25})`);
+    topGrad.addColorStop(1, `rgba(74, 62, 102, ${0.55 + isl.depth * 0.2})`);
+    g.fillStyle = topGrad;
+    g.fill();
+
+    // Orbiting small floating rock shards below island
+    for (let k = 0; k < isl.shardList.length; k++) {
+      const sh = isl.shardList[k];
+      const sx = sh.dx * iw * 0.55;
+      const sy = sh.dy * ih + Math.sin(loopPhase * sh.freq + sh.phase) * 7 * unit;
+      const sr = sh.size * unit;
+      g.save();
+      g.translate(sx, sy);
+      g.rotate(sh.rot + Math.sin(loopPhase + sh.phase) * 0.2);
+      g.fillStyle = `rgba(34, 28, 48, ${0.68 + isl.depth * 0.25})`;
+      g.beginPath();
+      g.moveTo(0, -sr);
+      g.lineTo(sr * 0.8, 0);
+      g.lineTo(sr * 0.1, sr * 1.15);
+      g.lineTo(-sr * 0.75, sr * 0.15);
+      g.closePath();
+      g.fill();
+      g.strokeStyle = `rgba(160, 128, 224, ${0.22 + blastGlow * 0.25})`;
+      g.lineWidth = 0.8;
+      g.stroke();
+      g.restore();
+    }
+
+    g.restore();
+  }
+
+  function drawUpsideDownWaterfall(g, bg, isl, cx, cy, iw, ih, t, loopPhase, state) {
+    const wf = isl.waterfall;
+    const { blastGlow, darkness } = state;
+    const baseX = cx + wf.offsetX * iw;
+    const baseY = cy - ih * 0.22;
+    const wfW = wf.width * unit;
+    const wfH = wf.height * unit;
+    const vis = (1 - darkness * 0.82) * (0.52 + isl.depth * 0.45);
+    if (vis <= 0.02) return;
+
+    g.save();
+    // Main upward-streaming spectral water column (widens gently & dissolves into mist high above)
+    const grad = g.createLinearGradient(baseX, baseY, baseX, baseY - wfH);
+    grad.addColorStop(0.0, `rgba(182, 206, 255, ${0.58 * vis})`);
+    grad.addColorStop(0.28, `rgba(154, 152, 238, ${0.42 * vis})`);
+    grad.addColorStop(0.72, `rgba(148, 108, 224, ${0.22 * vis + blastGlow * 0.18})`);
+    grad.addColorStop(1.0, 'rgba(130, 86, 210, 0)');
+
+    const sway = Math.sin(loopPhase * 2 + isl.bobPhase) * 6 * unit;
+    g.fillStyle = grad;
+    g.beginPath();
+    g.moveTo(baseX - wfW * 0.5, baseY);
+    g.quadraticCurveTo(baseX - wfW * 0.44 + sway * 0.5, baseY - wfH * 0.5, baseX - wfW * 0.78 + sway, baseY - wfH);
+    g.lineTo(baseX + wfW * 0.78 + sway, baseY - wfH);
+    g.quadraticCurveTo(baseX + wfW * 0.44 + sway * 0.5, baseY - wfH * 0.5, baseX + wfW * 0.5, baseY);
+    g.closePath();
+    g.fill();
+
+    // Animated UPWARD-flowing bright water ribbons (strictly loop-synced!)
+    const flowCycles = Math.max(1, Math.round(wf.speed * 5)); // integer cycles per LOOP_DURATION
+    const flowProgress = (t / LOOP_DURATION) * flowCycles;
+    for (let i = 0; i < wf.streaks.length; i++) {
+      const st = wf.streaks[i];
+      const prog = (st.offset + flowProgress) % 1;
+      const y1 = baseY - prog * wfH;
+      const y2 = y1 - st.len * wfH;
+      const fade = Math.sin(prog * Math.PI);
+      const sx = baseX + st.rx * wfW * (0.5 + prog * 0.35) + sway * prog;
+
+      g.strokeStyle = `rgba(218, 226, 255, ${st.alpha * fade * vis * (0.85 + blastGlow * 0.5)})`;
+      g.lineWidth = st.w * unit;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(sx, y1);
+      g.lineTo(sx + sway * 0.06, Math.max(baseY - wfH, y2));
+      g.stroke();
+    }
+
+    // Rising glowing mist droplets floating upward from the waterfall
+    for (let i = 0; i < wf.mists.length; i++) {
+      const m = wf.mists[i];
+      const prog = (m.offset + flowProgress * 0.6) % 1;
+      const mx = baseX + m.rx * wfW + m.drift * prog * unit + sway * prog;
+      const my = baseY - prog * wfH * 1.05;
+      const fade = Math.sin(prog * Math.PI);
+      g.fillStyle = `rgba(204, 198, 255, ${0.32 * fade * vis})`;
+      g.beginPath();
+      g.arc(mx, my, m.r * unit * (0.7 + prog * 0.9), 0, TWO_PI);
+      g.fill();
+    }
+
+    // Shimmering launch pool glow at the island plateau rim
+    const poolG = g.createRadialGradient(baseX, baseY, 1, baseX, baseY, wfW * 1.15);
+    poolG.addColorStop(0, `rgba(214, 224, 255, ${0.55 * vis})`);
+    poolG.addColorStop(0.5, `rgba(156, 120, 240, ${0.24 * vis})`);
+    poolG.addColorStop(1, 'rgba(130, 86, 210, 0)');
+    g.fillStyle = poolG;
+    g.beginPath();
+    g.ellipse(baseX, baseY, wfW * 1.1, wfW * 0.32, 0, 0, TWO_PI);
+    g.fill();
+
+    // Subtle bloom contribution from upward waterfalls (completely dimmed during Act 2 pitch-black darkness)
+    const bloomVis = vis * Math.max(0, 1 - darkness * 1.12);
+    if (bloomVis > 0.01) {
+      bg.save();
+      bg.globalAlpha = 0.24 * bloomVis;
+      bg.fillStyle = '#9e7eff';
+      bg.beginPath();
+      bg.ellipse(baseX, baseY - wfH * 0.28, wfW * 0.72, wfH * 0.34, 0, 0, TWO_PI);
+      bg.fill();
+      bg.restore();
+    }
+
+    g.restore();
+  }
+
+  // =========================================================================
+  // Shadow Portal / Dimensional Rift Renderer
+  // =========================================================================
+  function getRiftCenterX(riftX, y, riftY, riftH, t) {
+    const ny = (y - riftY) / (riftH * 0.5);
+    return riftX + Math.sin(ny * 5.2 + t * 5.2) * 11 * unit + Math.cos(ny * 11.5 - t * 3.8) * 5.5 * unit;
+  }
+
+  function drawShadowRift(g, bg, rx, ry, width, height, openAmt, t, intensity = 1.0) {
+    if (openAmt <= 0.005) return;
+    const halfH = height * 0.5 * easeOutCubic(openAmt);
+    const halfW = width * 0.5 * openAmt;
+    const steps = 32;
+
+    const leftPts = [];
+    const rightPts = [];
+    for (let i = 0; i <= steps; i++) {
+      const f = i / steps; // 0 top -> 1 bottom
+      const y = ry - halfH + f * halfH * 2;
+      // Sharp diamond-fissure taper at top & bottom tips
+      const profile = Math.pow(Math.sin(f * Math.PI), 1.35);
+      const jagged = profile * halfW;
+      const zigL = (Math.sin(f * 31 + t * 9.5) * 8.5 + Math.cos(f * 53 - t * 6.0) * 4.5) * unit * profile;
+      const zigR = (Math.cos(f * 29 - t * 10.2) * 8.5 + Math.sin(f * 47 + t * 5.5) * 4.5) * unit * profile;
+      const cx = getRiftCenterX(rx, y, ry, height, t);
+      leftPts.push({ x: cx - jagged + zigL, y });
+      rightPts.push({ x: cx + jagged + zigR, y });
+    }
+
+    const traceRift = (targetCtx, expand = 0) => {
+      targetCtx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const p = leftPts[i];
+        const f = i / steps;
+        const prof = Math.sin(f * Math.PI);
+        const px = p.x - expand * prof;
+        if (i === 0) targetCtx.moveTo(px, p.y);
+        else targetCtx.lineTo(px, p.y);
+      }
+      for (let i = steps; i >= 0; i--) {
+        const p = rightPts[i];
+        const f = i / steps;
+        const prof = Math.sin(f * Math.PI);
+        const px = p.x + expand * prof;
+        targetCtx.lineTo(px, p.y);
+      }
+      targetCtx.closePath();
+    };
+
+    // Outer dimensional distortion aura & dark smoke vortex
+    g.save();
+    const auraG = g.createRadialGradient(rx, ry, halfW * 0.25, rx, ry, Math.max(halfH, halfW * 2.6) * 1.18);
+    auraG.addColorStop(0, `rgba(138, 44, 255, ${0.46 * openAmt * intensity})`);
+    auraG.addColorStop(0.38, `rgba(62, 16, 128, ${0.34 * openAmt * intensity})`);
+    auraG.addColorStop(0.7, `rgba(18, 5, 36, ${0.22 * openAmt * intensity})`);
+    auraG.addColorStop(1, 'rgba(10, 3, 22, 0)');
+    g.fillStyle = auraG;
+    g.beginPath();
+    g.ellipse(rx, ry, halfW * 2.9 + 64 * unit, halfH * 1.28 + 36 * unit, 0, 0, TWO_PI);
+    g.fill();
+
+    // Swirling inward dark-purple & black energy ribbons pulling into the fissure
+    for (let k = 0; k < 12; k++) {
+      const ang = (k / 12) * TWO_PI + t * 1.85;
+      const cycle = ((t * 0.68 + k * 0.17) % 1);
+      const dist = (1.2 - cycle) * (halfW * 2.5 + 58 * unit);
+      const sx = rx + Math.cos(ang) * dist;
+      const sy = ry + Math.sin(ang) * dist * 1.55;
+      const tx = rx + Math.cos(ang + 0.65) * dist * 0.22;
+      const ty = ry + Math.sin(ang + 0.65) * dist * 0.38;
+      const fade = Math.sin(cycle * Math.PI);
+      g.strokeStyle = k % 4 === 0
+        ? `rgba(255, 48, 102, ${0.48 * fade * openAmt * intensity})`
+        : k % 2 === 0
+          ? `rgba(170, 90, 255, ${0.52 * fade * openAmt * intensity})`
+          : `rgba(8, 3, 18, ${0.72 * fade * openAmt * intensity})`;
+      g.lineWidth = (k % 2 === 1 ? 5.0 : 1.8) * unit;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(sx, sy);
+      g.quadraticCurveTo(
+        (sx + tx) * 0.5 + Math.sin(ang * 2) * 24 * unit,
+        (sy + ty) * 0.5 - Math.cos(ang) * 14 * unit,
+        tx, ty
+      );
+      g.stroke();
+    }
+
+    // Jagged outer violet plasma tear
+    traceRift(g, 13 * unit);
+    g.fillStyle = `rgba(132, 42, 248, ${0.52 * openAmt * intensity})`;
+    g.fill();
+
+    traceRift(g, 4.5 * unit);
+    g.fillStyle = `rgba(218, 152, 255, ${0.84 * openAmt * intensity})`;
+    g.fill();
+
+    // Abyssal pitch-black interior void with swirling subtle indigo depth
+    traceRift(g, -1 * unit);
+    const coreG = g.createRadialGradient(rx, ry, 2, rx, ry, halfH * 0.88);
+    coreG.addColorStop(0, '#010004');
+    coreG.addColorStop(0.62, '#070210');
+    coreG.addColorStop(0.88, '#1a0736');
+    coreG.addColorStop(1, '#3b1072');
+    g.fillStyle = coreG;
+    g.fill();
+
+    // Internal dimensional depth rings clipped inside the rift core
+    g.save();
+    traceRift(g, -2 * unit);
+    g.clip();
+    for (let r = 0; r < 3; r++) {
+      const rp = ((t * 0.55 + r * 0.33) % 1);
+      g.strokeStyle = `rgba(156, 72, 255, ${(1 - rp) * 0.38 * openAmt})`;
+      g.lineWidth = 1.6 * unit;
+      g.beginPath();
+      g.ellipse(rx, ry, halfW * (1.2 - rp * 0.9), halfH * (0.95 - rp * 0.72), 0, 0, TWO_PI);
+      g.stroke();
+    }
+    g.restore();
+
+    // Crisp electric white-lavender tear outline
+    g.strokeStyle = `rgba(244, 212, 255, ${0.88 * openAmt * intensity})`;
+    g.lineWidth = 1.8 * unit;
+    traceRift(g, 1.8 * unit);
+    g.stroke();
+
+    g.restore();
+
+    // Push rift neon rim to bloom buffer
+    bg.save();
+    traceRift(bg, 10 * unit);
+    bg.strokeStyle = `rgba(164, 64, 255, ${0.95 * openAmt * intensity})`;
+    bg.lineWidth = 8.5 * unit;
+    bg.stroke();
+    traceRift(bg, 3 * unit);
+    bg.strokeStyle = `rgba(255, 62, 128, ${0.58 * openAmt * intensity})`;
+    bg.lineWidth = 3.2 * unit;
+    bg.stroke();
+    bg.restore();
+  }
+
+  // =========================================================================
+  // Giratina (Origin Forme) Procedural Articulated Vector Renderer
+  // =========================================================================
+  function drawGiratinaOrigin(g, bg, params) {
+    const {
+      x, y, scale, t, loopPhase,
+      poseMode,       // 'hover' | 'dive' | 'erupt'
+      poseBlend,      // 0..1 intensity
+      wingFlare,      // 0..1 dramatic wing spread
+      alpha,          // 0..1 body opacity (turns ghostly in Act 1)
+      ghostAura,      // 0..1 purple spectral outline & phase glow
+      eyeGlow,        // 0..2 red eye brilliance
+      facing,         // +1 right, -1 left
+      headTilt,       // radians
+      clipRift        // optional { rx, ry, height, t, side }
+    } = params;
+
+    if (alpha <= 0.005) return;
+
+    // Render onto scratch entityCanvas when semi-transparent or clipped, so layers blend cleanly as one unified silhouette!
+    const useScratch = alpha < 0.99 || !!clipRift;
+    const target = useScratch ? eCtx : g;
+    if (useScratch) {
+      eCtx.save();
+      eCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      eCtx.clearRect(0, 0, W, H);
+    }
+
+    const s = scale * unit;
+    const N = 18;
+    const spine = [];
+
+    // Build articulated serpentine spine points in local space (head at index 0 -> tail at index 17)
+    const wavePhase = loopPhase * 4; // 4 full smooth body undulations per 26s loop
+    for (let i = 0; i < N; i++) {
+      const u = i / (N - 1); // 0 = head, 1 = tail tip
+      let lx, ly;
+
+      if (poseMode === 'dive') {
+        // Streamlined sinuous forward dive directly into the shadow rift
+        lx = (0.48 - u * 1.56) * 245;
+        const diveWave = -Math.cos(u * Math.PI * 1.55) * 28 * (1 - poseBlend * 0.45);
+        const ripple = Math.sin(wavePhase - u * 5.4) * (9 + u * 18);
+        ly = diveWave + ripple;
+      } else if (poseMode === 'erupt') {
+        // Aggressive coiled dragon lunge forward out of the dimensional rift!
+        lx = (0.56 - u * 1.38) * 248 + Math.sin(u * Math.PI * 1.2) * 32 * poseBlend;
+        // Head lunges forward-level, torso arches powerfully behind, tail coils downward
+        const lungeY = -58 * Math.exp(-u * 3.8) + Math.sin(u * Math.PI * 1.4 - 0.5) * 44 + Math.pow(u, 1.9) * 95;
+        const ripple = Math.sin(wavePhase * 1.5 - u * 5.0) * (7 + u * 15);
+        ly = lungeY + ripple;
+      } else {
+        // Majestic Origin Forme upright serpentine S-curve:
+        // Neck & head lifted proudly high (u=0 -> y ≈ -68), chest sweeps gracefully down-back, tail trails elegantly
+        lx = (0.42 - u * 1.36) * 242 + Math.sin(u * Math.PI * 1.6) * 22;
+        const uprightS = -72 * Math.exp(-u * 4.2) + Math.sin(u * Math.PI * 1.35 - 0.55) * 42 + Math.pow(u, 1.85) * 86;
+        const ripple = Math.sin(wavePhase - u * 4.6) * (6 + u * 14);
+        ly = uprightS + ripple;
+      }
+
+      // Thickness profile along Origin Forme body
+      let radius;
+      if (u < 0.14) radius = lerp(21, 30, u / 0.14);
+      else if (u < 0.40) radius = lerp(30, 35, (u - 0.14) / 0.26);
+      else if (u < 0.72) radius = lerp(35, 16, (u - 0.40) / 0.32);
+      else radius = lerp(16, 2.4, (u - 0.72) / 0.28);
+
+      spine.push({
+        x: x + lx * s * facing,
+        y: y + ly * s,
+        r: radius * s
+      });
+    }
+
+    // Compute smooth tangents & normals along spine
+    for (let i = 0; i < N; i++) {
+      const prev = spine[Math.max(0, i - 1)];
+      const next = spine[Math.min(N - 1, i + 1)];
+      const dx = prev.x - next.x; // pointing toward head
+      const dy = prev.y - next.y;
+      const len = Math.hypot(dx, dy) || 1;
+      spine[i].tx = dx / len;
+      spine[i].ty = dy / len;
+      // Normal pointing "dorsal/up"
+      spine[i].nx = spine[i].ty * facing;
+      spine[i].ny = -spine[i].tx * facing;
+    }
+
+    // Helper: draw one of the 6 sinuous shadowy tendril-wings with crimson stripes & red claw tip
+    function drawWingTendril(anchorIdx, sideSign, indexInSet, isBack) {
+      const anchor = spine[anchorIdx];
+      const segs = 11;
+      const pts = [];
+      const flare = wingFlare;
+
+      // Sweeping fan angles for the 3 wings on each side (flowing dramatically up-and-back)
+      const baseAngles = [-2.52, -2.05, -1.55];
+      let ang = baseAngles[indexInSet];
+      if (isBack) ang -= 0.24;
+      if (poseMode === 'erupt') ang += (indexInSet - 1) * 0.28 * flare + 0.14 * flare;
+      if (poseMode === 'dive') ang = lerp(ang, -2.86 + indexInSet * 0.14, poseBlend * 0.68);
+
+      const length = (205 + (1 - Math.abs(indexInSet - 1)) * 46 + flare * 62) * s;
+      const baseWidth = (18 + (indexInSet === 1 ? 5 : 0)) * s;
+
+      for (let k = 0; k <= segs; k++) {
+        const f = k / segs;
+        const spread = ang + Math.sin(wavePhase - f * 3.8 + indexInSet * 1.15 + (isBack ? 0.9 : 0)) * (0.14 + f * 0.18);
+        const sweep = f * length;
+        const curlY = Math.sin(f * Math.PI * 1.1) * (isBack ? -26 : -14) * s;
+        const px = anchor.x + Math.cos(spread) * sweep * facing + (isBack ? -12 * s * facing : 0);
+        const py = anchor.y + Math.sin(spread) * sweep + curlY - anchor.r * 0.45;
+        const w = baseWidth * Math.pow(1 - f * 0.86, 0.72) * (1 + Math.sin(f * Math.PI) * 0.35);
+        pts.push({ x: px, y: py, w });
+      }
+
+      // Compute ribbon polygon with jagged shadowy barbs
+      const upper = [];
+      const lower = [];
+      for (let k = 0; k <= segs; k++) {
+        const p = pts[k];
+        const prev = pts[Math.max(0, k - 1)];
+        const next = pts[Math.min(segs, k + 1)];
+        const dx = next.x - prev.x;
+        const dy = next.y - prev.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len;
+        const ny = dx / len;
+        const barb = (k === 4 || k === 7) ? 1.48 : 1.0;
+        upper.push({ x: p.x + nx * p.w * 0.65, y: p.y + ny * p.w * 0.65 });
+        lower.push({ x: p.x - nx * p.w * barb, y: p.y - ny * p.w * barb });
+      }
+
+      target.save();
+      target.beginPath();
+      target.moveTo(upper[0].x, upper[0].y);
+      for (let k = 1; k <= segs; k++) target.lineTo(upper[k].x, upper[k].y);
+      for (let k = segs; k >= 0; k--) target.lineTo(lower[k].x, lower[k].y);
+      target.closePath();
+
+      const wGrad = target.createLinearGradient(pts[0].x, pts[0].y, pts[segs].x, pts[segs].y);
+      if (isBack) {
+        wGrad.addColorStop(0, '#0a0812');
+        wGrad.addColorStop(0.55, '#151024');
+        wGrad.addColorStop(1, '#28132d');
+      } else {
+        wGrad.addColorStop(0, '#0e0b18');
+        wGrad.addColorStop(0.6, '#1c162d');
+        wGrad.addColorStop(1, '#311533');
+      }
+      target.fillStyle = wGrad;
+      target.fill();
+
+      // Ghostly purple rim along tendril edge
+      target.strokeStyle = `rgba(162, 98, 250, ${0.30 + ghostAura * 0.55 + flare * 0.24})`;
+      target.lineWidth = (1.3 + ghostAura * 1.4) * s;
+      target.stroke();
+
+      // Bold crimson-red stripes along the wing tendril
+      const stripeIndices = [3, 6, 8];
+      for (let si = 0; si < stripeIndices.length; si++) {
+        const idx = stripeIndices[si];
+        const pA = upper[idx];
+        const pB = lower[idx];
+        const pC = lower[Math.min(segs, idx + 1)];
+        const pD = upper[Math.min(segs, idx + 1)];
+        target.beginPath();
+        target.moveTo(pA.x, pA.y);
+        target.lineTo(pB.x, pB.y);
+        target.lineTo(lerp(pB.x, pC.x, 0.58), lerp(pB.y, pC.y, 0.58));
+        target.lineTo(lerp(pA.x, pD.x, 0.58), lerp(pA.y, pD.y, 0.58));
+        target.closePath();
+        target.fillStyle = isBack ? 'rgba(182, 26, 58, 0.86)' : 'rgba(232, 34, 70, 0.96)';
+        target.fill();
+      }
+
+      // Iconic curved glowing crimson-red spike/claw at the tip of every wing tendril!
+      const tip = pts[segs];
+      const prevTip = pts[segs - 1];
+      const tdx = tip.x - prevTip.x;
+      const tdy = tip.y - prevTip.y;
+      const tAng = Math.atan2(tdy, tdx);
+      const clawLen = (32 + flare * 12) * s;
+
+      target.save();
+      target.translate(tip.x, tip.y);
+      target.rotate(tAng);
+      target.beginPath();
+      target.moveTo(-4 * s, -6.5 * s);
+      target.quadraticCurveTo(clawLen * 0.55, -10 * s, clawLen, 2 * s);
+      target.quadraticCurveTo(clawLen * 0.45, 5 * s, -4 * s, 5.5 * s);
+      target.closePath();
+
+      const clawG = target.createLinearGradient(-4 * s, 0, clawLen, 0);
+      clawG.addColorStop(0, '#9e132d');
+      clawG.addColorStop(0.55, '#eb2448');
+      clawG.addColorStop(1, '#ff7894');
+      target.fillStyle = clawG;
+      target.fill();
+      target.restore();
+
+      // Add subtle crimson glow on bloom buffer for visible wing tips
+      if (!clipRift && alpha > 0.25) {
+        bg.save();
+        bg.globalAlpha = (isBack ? 0.26 : 0.46) * alpha * (0.7 + flare * 0.5);
+        bg.fillStyle = '#ff274b';
+        bg.beginPath();
+        bg.arc(tip.x + Math.cos(tAng) * clawLen * 0.45, tip.y + Math.sin(tAng) * clawLen * 0.45, 11 * s, 0, TWO_PI);
+        bg.fill();
+        bg.restore();
+      }
+
+      target.restore();
+    }
+
+    // Helper: draw one curved metallic golden rib-claw wrapping around Giratina's body
+    function drawGoldenRibClaw(spineIdx, isBack, sizeMult = 1.0) {
+      const sp = spine[spineIdx];
+      const len = (50 * sizeMult) * s;
+      const thick = (11.5 * sizeMult) * s;
+      const baseAngle = Math.atan2(sp.ty, sp.tx);
+
+      target.save();
+      target.translate(sp.x, sp.y);
+      target.rotate(baseAngle);
+      if (facing < 0) target.scale(1, -1);
+
+      const yOff = isBack ? -sp.r * 0.72 : -sp.r * 0.42;
+      const curveSign = isBack ? -1 : 1;
+
+      target.beginPath();
+      if (isBack) {
+        // Far-side rib-claw peeking over & forward behind the neck/chest
+        target.moveTo(-thick * 0.6, yOff);
+        target.quadraticCurveTo(len * 0.35, yOff - len * 0.68, len * 0.92, yOff - len * 0.12);
+        target.quadraticCurveTo(len * 0.32, yOff - len * 0.32, thick * 0.55, yOff + thick * 0.3);
+      } else {
+        // Near-side rib-claw wrapping dramatically across the flank and pointing forward/outward
+        target.moveTo(-thick * 0.7, -sp.r * 0.78);
+        target.bezierCurveTo(
+          len * 0.18, -sp.r * 0.98,
+          len * 0.66, sp.r * 0.18,
+          len * 1.02, sp.r * 0.98
+        );
+        target.bezierCurveTo(
+          len * 0.38, sp.r * 0.46,
+          -thick * 0.1, -sp.r * 0.25,
+          -thick * 0.55, -sp.r * 0.35
+        );
+      }
+      target.closePath();
+
+      const goldG = target.createLinearGradient(-thick, -sp.r, len, sp.r * curveSign);
+      if (isBack) {
+        goldG.addColorStop(0, '#7c5312');
+        goldG.addColorStop(0.55, '#c9942d');
+        goldG.addColorStop(1, '#f3d478');
+      } else {
+        goldG.addColorStop(0, '#8d6016');
+        goldG.addColorStop(0.32, '#e6b649');
+        goldG.addColorStop(0.68, '#fff4b8');
+        goldG.addColorStop(1, '#d39a2e');
+      }
+      target.fillStyle = goldG;
+      target.fill();
+
+      target.strokeStyle = 'rgba(34, 20, 6, 0.9)';
+      target.lineWidth = Math.max(1, 1.4 * s);
+      target.stroke();
+
+      // Specular metallic glint ridge
+      if (!isBack) {
+        target.strokeStyle = 'rgba(255, 250, 224, 0.72)';
+        target.lineWidth = Math.max(0.8, 1.15 * s);
+        target.beginPath();
+        target.moveTo(-thick * 0.25, -sp.r * 0.65);
+        target.quadraticCurveTo(len * 0.38, -sp.r * 0.22, len * 0.82, sp.r * 0.72);
+        target.stroke();
+      }
+      target.restore();
+    }
+
+    // -----------------------------------------------------------------------
+    // LAYER 1: Back-side 3 shadow tendril-wings
+    // -----------------------------------------------------------------------
+    drawWingTendril(3, -1, 0, true);
+    drawWingTendril(5, -1, 1, true);
+    drawWingTendril(7, -1, 2, true);
+
+    // -----------------------------------------------------------------------
+    // LAYER 2: Back-side golden rib-claws
+    // -----------------------------------------------------------------------
+    drawGoldenRibClaw(3, true, 0.94);
+    drawGoldenRibClaw(5, true, 1.06);
+    drawGoldenRibClaw(7, true, 0.92);
+    drawGoldenRibClaw(10, true, 0.62);
+
+    // -----------------------------------------------------------------------
+    // LAYER 3: Serpentine dark charcoal-gray/black body & crimson/black belly stripes
+    // -----------------------------------------------------------------------
+    const dorsalPts = [];
+    const ventralPts = [];
+    for (let i = 0; i < N; i++) {
+      const sp = spine[i];
+      dorsalPts.push({ x: sp.x + sp.nx * sp.r, y: sp.y + sp.ny * sp.r });
+      ventralPts.push({ x: sp.x - sp.nx * sp.r, y: sp.y - sp.ny * sp.r });
+    }
+
+    target.save();
+    target.beginPath();
+    target.moveTo(dorsalPts[0].x, dorsalPts[0].y);
+    for (let i = 1; i < N; i++) target.lineTo(dorsalPts[i].x, dorsalPts[i].y);
+    // Pointed tail tip
+    const lastSp = spine[N - 1];
+    target.lineTo(lastSp.x - lastSp.tx * 26 * s, lastSp.y - lastSp.ty * 26 * s);
+    for (let i = N - 1; i >= 0; i--) target.lineTo(ventralPts[i].x, ventralPts[i].y);
+    target.closePath();
+
+    // Rich dark slate-gray to charcoal-black gradient (clearly legible against the purple void!)
+    const bodyGrad = target.createLinearGradient(
+      spine[2].x + spine[2].nx * 48 * s,
+      spine[2].y + spine[2].ny * 48 * s,
+      spine[5].x - spine[5].nx * 48 * s,
+      spine[5].y - spine[5].ny * 48 * s
+    );
+    bodyGrad.addColorStop(0.0, '#5a5c72');
+    bodyGrad.addColorStop(0.30, '#383a4a');
+    bodyGrad.addColorStop(0.68, '#20222e');
+    bodyGrad.addColorStop(1.0, '#101119');
+    target.fillStyle = bodyGrad;
+    target.fill();
+
+    // Clip inside body to paint crisp crimson & obsidian ventral stripes and dorsal rim
+    target.save();
+    target.clip();
+
+    // Ventral alternating crimson-red & jet-black belly bands
+    for (let i = 1; i < 13; i++) {
+      const a = spine[i];
+      const b = spine[i + 1];
+      const va = ventralPts[i];
+      const vb = ventralPts[i + 1];
+      const midA = { x: lerp(va.x, a.x, 0.54), y: lerp(va.y, a.y, 0.54) };
+      const midB = { x: lerp(vb.x, b.x, 0.54), y: lerp(vb.y, b.y, 0.54) };
+
+      target.beginPath();
+      target.moveTo(va.x, va.y);
+      target.lineTo(vb.x, vb.y);
+      target.lineTo(midB.x, midB.y);
+      target.lineTo(midA.x, midA.y);
+      target.closePath();
+      target.fillStyle = i % 2 === 1 ? '#c41f3e' : '#0a0910';
+      target.fill();
+    }
+
+    // Crisp violet-silver dorsal rim lighting
+    target.beginPath();
+    target.moveTo(dorsalPts[0].x, dorsalPts[0].y);
+    for (let i = 1; i < N; i++) target.lineTo(dorsalPts[i].x, dorsalPts[i].y);
+    target.strokeStyle = `rgba(196, 174, 246, ${0.46 + ghostAura * 0.48})`;
+    target.lineWidth = 4.6 * s;
+    target.stroke();
+
+    // Segmented dark armor ridge ticks along dorsal spine
+    target.strokeStyle = 'rgba(10, 9, 16, 0.52)';
+    target.lineWidth = 1.6 * s;
+    for (let i = 2; i < 13; i++) {
+      const sp = spine[i];
+      target.beginPath();
+      target.moveTo(sp.x + sp.nx * sp.r * 0.9, sp.y + sp.ny * sp.r * 0.9);
+      target.lineTo(sp.x + sp.nx * sp.r * 0.1, sp.y + sp.ny * sp.r * 0.1);
+      target.stroke();
+    }
+    target.restore();
+
+    // Outer body contour + spectral ghost aura when slipping into the portal
+    target.strokeStyle = ghostAura > 0.05
+      ? `rgba(178, 102, 255, ${0.32 + ghostAura * 0.65})`
+      : 'rgba(12, 10, 20, 0.85)';
+    target.lineWidth = (1.6 + ghostAura * 2.2) * s;
+    target.stroke();
+    target.restore();
+
+    // -----------------------------------------------------------------------
+    // LAYER 4: Front-side 3 shadow tendril-wings
+    // -----------------------------------------------------------------------
+    drawWingTendril(3, 1, 0, false);
+    drawWingTendril(5, 1, 1, false);
+    drawWingTendril(7, 1, 2, false);
+
+    // -----------------------------------------------------------------------
+    // LAYER 5: Front-side golden rib-claws & lower tail gold spikes
+    // -----------------------------------------------------------------------
+    drawGoldenRibClaw(3, false, 1.0);
+    drawGoldenRibClaw(5, false, 1.12);
+    drawGoldenRibClaw(7, false, 0.98);
+    drawGoldenRibClaw(10, false, 0.68);
+    drawGoldenRibClaw(13, false, 0.46);
+
+    // -----------------------------------------------------------------------
+    // LAYER 6: Sculpted Head, Golden Crown Crest & Piercing Glowing Red Eyes
+    // -----------------------------------------------------------------------
+    const head = spine[0];
+    const headAng = Math.atan2(head.ty, head.tx) * 0.16 + headTilt;
+    const hs = s * 1.24; // Proud, unmistakable regal head & golden crown scale
+
+    target.save();
+    target.translate(head.x + 12 * s * facing, head.y - 6 * s);
+    target.rotate(headAng);
+    if (facing < 0) target.scale(-1, 1);
+
+    // Dark charcoal head & fierce reptilian lower jaw
+    target.beginPath();
+    target.moveTo(-26 * hs, -15 * hs);
+    target.lineTo(18 * hs, -14 * hs);
+    target.lineTo(35 * hs, 2 * hs);
+    target.lineTo(22 * hs, 18 * hs);
+    target.lineTo(-18 * hs, 19 * hs);
+    target.lineTo(-30 * hs, 4 * hs);
+    target.closePath();
+    const faceG = target.createLinearGradient(0, -18 * hs, 0, 20 * hs);
+    faceG.addColorStop(0, '#3c3e50');
+    faceG.addColorStop(0.55, '#222430');
+    faceG.addColorStop(1, '#101018');
+    target.fillStyle = faceG;
+    target.fill();
+    target.strokeStyle = 'rgba(10, 9, 16, 0.9)';
+    target.lineWidth = 1.4 * hs;
+    target.stroke();
+
+    // Subtle crimson chin/neck accent under jaw
+    target.fillStyle = '#b81d39';
+    target.beginPath();
+    target.moveTo(-12 * hs, 14 * hs);
+    target.lineTo(14 * hs, 14 * hs);
+    target.lineTo(6 * hs, 21 * hs);
+    target.lineTo(-14 * hs, 20 * hs);
+    target.closePath();
+    target.fill();
+
+    // Far-side sweeping golden crown horn (behind head)
+    const goldHornG = target.createLinearGradient(-44 * hs, -58 * hs, 26 * hs, 12 * hs);
+    goldHornG.addColorStop(0, '#fff7c4');
+    goldHornG.addColorStop(0.42, '#eab848');
+    goldHornG.addColorStop(1, '#8c5d14');
+
+    target.fillStyle = '#b98222';
+    target.strokeStyle = '#2d1c05';
+    target.lineWidth = Math.max(1, 1.2 * hs);
+    target.beginPath();
+    target.moveTo(-4 * hs, -15 * hs);
+    target.quadraticCurveTo(-22 * hs, -54 * hs, -52 * hs, -62 * hs);
+    target.quadraticCurveTo(-28 * hs, -36 * hs, -14 * hs, -10 * hs);
+    target.closePath();
+    target.fill();
+    target.stroke();
+
+    // Iconic Golden Crown-like Head Crest (王冠のような頭部のクレスト)
+    target.fillStyle = goldHornG;
+    target.strokeStyle = '#332006';
+    target.lineWidth = Math.max(1, 1.4 * hs);
+
+    // Main sweeping upper-back crown horn
+    target.beginPath();
+    target.moveTo(-2 * hs, -14 * hs);
+    target.bezierCurveTo(-18 * hs, -48 * hs, -46 * hs, -66 * hs, -68 * hs, -56 * hs);
+    target.bezierCurveTo(-44 * hs, -46 * hs, -26 * hs, -24 * hs, -18 * hs, -4 * hs);
+    target.closePath();
+    target.fill();
+    target.stroke();
+
+    // Central sharp forehead crest & regal golden brow-visor
+    target.beginPath();
+    target.moveTo(-14 * hs, -18 * hs);
+    target.lineTo(5 * hs, -40 * hs);
+    target.lineTo(16 * hs, -23 * hs);
+    target.lineTo(40 * hs, -6 * hs);
+    target.lineTo(17 * hs, -2 * hs);
+    target.lineTo(-12 * hs, -6 * hs);
+    target.closePath();
+    target.fill();
+    target.stroke();
+
+    // Sweeping lower golden cheek/jaw crown blade
+    target.beginPath();
+    target.moveTo(-16 * hs, -4 * hs);
+    target.bezierCurveTo(-28 * hs, 8 * hs, -48 * hs, 22 * hs, -56 * hs, 35 * hs);
+    target.bezierCurveTo(-32 * hs, 28 * hs, -12 * hs, 16 * hs, 5 * hs, 12 * hs);
+    target.lineTo(-4 * hs, 4 * hs);
+    target.closePath();
+    target.fill();
+    target.stroke();
+
+    // Golden specular highlight line across crown
+    target.strokeStyle = 'rgba(255, 252, 232, 0.78)';
+    target.lineWidth = 1.2 * hs;
+    target.beginPath();
+    target.moveTo(-60 * hs, -54 * hs);
+    target.quadraticCurveTo(-22 * hs, -42 * hs, 5 * hs, -35 * hs);
+    target.lineTo(33 * hs, -7 * hs);
+    target.stroke();
+
+    // Piercing Glowing Crimson-Red Eye (赤い目)
+    const ex = 11.5 * hs;
+    const ey = 0.8 * hs;
+    target.save();
+    target.beginPath();
+    target.moveTo(ex - 9.5 * hs, ey - 3.6 * hs);
+    target.lineTo(ex + 9.5 * hs, ey - 0.5 * hs);
+    target.lineTo(ex + 3.5 * hs, ey + 5.2 * hs);
+    target.lineTo(ex - 7.5 * hs, ey + 3.2 * hs);
+    target.closePath();
+
+    const eyeG = target.createRadialGradient(ex + 1 * hs, ey + 0.5 * hs, 0.5, ex, ey, 11 * hs);
+    eyeG.addColorStop(0, '#ffd8e0');
+    eyeG.addColorStop(0.35, '#ff1f44');
+    eyeG.addColorStop(1, '#990620');
+    target.fillStyle = eyeG;
+    target.fill();
+
+    // Dark fierce vertical slit pupil
+    target.fillStyle = '#190208';
+    target.beginPath();
+    target.ellipse(ex + 1.2 * hs, ey + 0.6 * hs, 1.3 * hs, 3.3 * hs, 0.15, 0, TWO_PI);
+    target.fill();
+
+    // Tiny sharp white glint
+    target.fillStyle = '#ffffff';
+    target.beginPath();
+    target.arc(ex + 3.4 * hs, ey - 0.8 * hs, 1.35 * hs, 0, TWO_PI);
+    target.fill();
+    target.restore();
+
+    // Compute world position of eye to add crisp red glow onto bloom canvas
+    const cosH = Math.cos(headAng);
+    const sinH = Math.sin(headAng);
+    const eyeWorldX = (head.x + 12 * s * facing) + (ex * facing * cosH - ey * sinH);
+    const eyeWorldY = (head.y - 6 * s) + (ex * facing * sinH + ey * cosH);
+
+    target.restore(); // end head
+
+    // Push eye & gold crown glow to bloom buffer (if eye hasn't crossed past rift clip)
+    const eyeVisible = !clipRift || (clipRift.side === 'left' ? eyeWorldX < getRiftCenterX(clipRift.rx, eyeWorldY, clipRift.ry, clipRift.height, clipRift.t) : true);
+    if (eyeVisible && eyeGlow > 0.05) {
+      bg.save();
+      const eg = bg.createRadialGradient(eyeWorldX, eyeWorldY, 1, eyeWorldX, eyeWorldY, 34 * s * eyeGlow);
+      eg.addColorStop(0, `rgba(255, 68, 102, ${0.95 * alpha})`);
+      eg.addColorStop(0.4, `rgba(255, 20, 56, ${0.48 * alpha})`);
+      eg.addColorStop(1, 'rgba(255, 10, 40, 0)');
+      bg.fillStyle = eg;
+      bg.beginPath();
+      bg.arc(eyeWorldX, eyeWorldY, 34 * s * eyeGlow, 0, TWO_PI);
+      bg.fill();
+      bg.restore();
+    }
+
+    // Composite scratch canvas onto main canvas with translucency & rift clipping!
+    if (useScratch) {
+      eCtx.restore();
+      g.save();
+      if (clipRift) {
+        g.beginPath();
+        if (clipRift.side === 'left') {
+          g.moveTo(-200, -200);
+          g.lineTo(getRiftCenterX(clipRift.rx, -200, clipRift.ry, clipRift.height, clipRift.t), -200);
+          const steps = 28;
+          for (let i = 0; i <= steps; i++) {
+            const yy = lerp(-100, H + 100, i / steps);
+            const xx = getRiftCenterX(clipRift.rx, yy, clipRift.ry, clipRift.height, clipRift.t);
+            g.lineTo(xx, yy);
+          }
+          g.lineTo(-200, H + 200);
+        }
+        g.closePath();
+        g.clip();
+      }
+      g.globalAlpha = alpha;
+      g.drawImage(entityCanvas, 0, 0, W, H);
+      g.restore();
+    }
+  }
+
+  // =========================================================================
+  // Act 2: Glowing Red Eyes Alone in the Darkness (緊張の間)
+  // =========================================================================
+  function drawDarknessEyes(g, bg, t, eyeAmt, flareAmt) {
+    if (eyeAmt <= 0.005) return;
+    const cx = W * 0.5;
+    const cy = H * 0.475 + Math.sin(t * 2.1) * 4 * unit;
+    const sep = (64 + flareAmt * 10) * unit;
+    const scale = (1.05 + flareAmt * 0.28) * unit;
+
+    // Subtle predatory narrowing during the tension beat
+    const narrow = 1 - Math.sin(clamp((t - 12.6) / 2.0, 0, 1) * Math.PI) * 0.28 + flareAmt * 0.35;
+
+    // Heartbeat-like faint crimson/violet spatial pulse in the darkness
+    const pulse = 0.5 + 0.5 * Math.sin((t - 12.0) * 4.4);
+    g.save();
+    const halo = g.createRadialGradient(cx, cy, 4, cx, cy, (220 + flareAmt * 160) * unit);
+    halo.addColorStop(0, `rgba(255, 22, 62, ${(0.22 + pulse * 0.1 + flareAmt * 0.32) * eyeAmt})`);
+    halo.addColorStop(0.45, `rgba(118, 18, 86, ${(0.14 + flareAmt * 0.2) * eyeAmt})`);
+    halo.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    g.fillStyle = halo;
+    g.beginPath();
+    g.arc(cx, cy, (220 + flareAmt * 160) * unit, 0, TWO_PI);
+    g.fill();
+
+    // Draw both fierce angular glowing eyes (mirrored left & right)
+    [-1, 1].forEach((side) => {
+      const ex = cx + side * sep;
+      const ey = cy;
+
+      g.save();
+      g.translate(ex, ey);
+      g.scale(side * scale, scale * narrow);
+
+      // Subtle trailing crimson mist wisps from outer corner of each eye
+      const wispG = g.createLinearGradient(18, -8, 72, -26);
+      wispG.addColorStop(0, `rgba(255, 32, 70, ${0.65 * eyeAmt})`);
+      wispG.addColorStop(1, 'rgba(180, 20, 90, 0)');
+      g.strokeStyle = wispG;
+      g.lineWidth = 3.2;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(22, -7);
+      g.quadraticCurveTo(44, -14 + Math.sin(t * 7 + side) * 5, 66 + flareAmt * 22, -22 + Math.cos(t * 6) * 6);
+      g.stroke();
+
+      // Main fierce angular crimson eye shape
+      g.beginPath();
+      g.moveTo(-26, 6);
+      g.quadraticCurveTo(-4, -13, 30, -11);
+      g.quadraticCurveTo(18, 10, -8, 13);
+      g.closePath();
+
+      const eg = g.createRadialGradient(2, -1, 1, 2, 0, 32);
+      eg.addColorStop(0.0, `rgba(255, 232, 238, ${eyeAmt})`);
+      eg.addColorStop(0.28, `rgba(255, 34, 72, ${eyeAmt})`);
+      eg.addColorStop(0.78, `rgba(186, 8, 36, ${eyeAmt})`);
+      eg.addColorStop(1.0, `rgba(92, 2, 18, ${eyeAmt * 0.8})`);
+      g.fillStyle = eg;
+      g.fill();
+
+      // Sharp dark vertical dragon slit pupil
+      g.fillStyle = `rgba(18, 2, 8, ${0.92 * eyeAmt})`;
+      g.beginPath();
+      g.ellipse(2, 0, 2.5 * (1 - flareAmt * 0.35), 9.2, 0.08, 0, TWO_PI);
+      g.fill();
+
+      // Incandescent specular spark
+      g.fillStyle = `rgba(255, 255, 255, ${0.95 * eyeAmt})`;
+      g.beginPath();
+      g.arc(7, -3.5, 2.2, 0, TWO_PI);
+      g.fill();
+
+      g.restore();
+
+      // Intense red bloom onto bloom canvas
+      bg.save();
+      const bRad = (62 + flareAmt * 55) * unit;
+      const bGrad = bg.createRadialGradient(ex, ey, 2, ex, ey, bRad);
+      bGrad.addColorStop(0, `rgba(255, 110, 135, ${0.95 * eyeAmt})`);
+      bGrad.addColorStop(0.35, `rgba(255, 20, 58, ${0.72 * eyeAmt})`);
+      bGrad.addColorStop(1, 'rgba(180, 0, 40, 0)');
+      bg.fillStyle = bGrad;
+      bg.beginPath();
+      bg.arc(ex, ey, bRad, 0, TWO_PI);
+      bg.fill();
+      bg.restore();
+    });
+
+    // Horizontal crimson light-flare streak right before shattering into Act 3
+    if (flareAmt > 0.02) {
+      const streakW = (260 + flareAmt * 540) * unit;
+      const sg = bg.createLinearGradient(cx - streakW, cy, cx + streakW, cy);
+      sg.addColorStop(0, 'rgba(255, 24, 74, 0)');
+      sg.addColorStop(0.5, `rgba(255, 120, 165, ${0.85 * flareAmt})`);
+      sg.addColorStop(1, 'rgba(255, 24, 74, 0)');
+      bg.save();
+      bg.fillStyle = sg;
+      bg.fillRect(cx - streakW, cy - 3.5 * unit, streakW * 2, 7 * unit);
+      bg.restore();
+    }
+
+    g.restore();
+  }
+
+  // =========================================================================
+  // Act 2 -> Act 3 Dimensional Fracture Cracks
+  // =========================================================================
+  function drawShatterCracks(g, bg, progress, fadeOut) {
+    if (progress <= 0.005 || fadeOut <= 0.005) return;
+    const cx = W * 0.5;
+    const cy = H * 0.48;
+    const span = Math.max(W, H) * 0.72;
+
+    g.save();
+    bg.save();
+    for (let i = 0; i < shatterCracks.length; i++) {
+      const cr = shatterCracks[i];
+      const localP = clamp((progress - cr.delay) / (1 - cr.delay), 0, 1);
+      if (localP <= 0) continue;
+
+      const totalSegs = cr.segs.length;
+      const exact = localP * totalSegs;
+
+      for (let s = 0; s < totalSegs; s++) {
+        if (s > exact) break;
+        const seg = cr.segs[s];
+        const frac = clamp(exact - s, 0, 1);
+        const x1 = cx + seg.x1 * span;
+        const y1 = cy + seg.y1 * span;
+        const x2 = cx + lerp(seg.x1, seg.x2, frac) * span;
+        const y2 = cy + lerp(seg.y1, seg.y2, frac) * span;
+
+        // Violet outer crack glow
+        g.strokeStyle = `rgba(176, 86, 255, ${0.72 * fadeOut})`;
+        g.lineWidth = (seg.branch ? 3.0 : 5.2) * unit;
+        g.beginPath();
+        g.moveTo(x1, y1);
+        g.lineTo(x2, y2);
+        g.stroke();
+
+        // Crisp blazing white-lavender core
+        g.strokeStyle = `rgba(252, 240, 255, ${0.92 * fadeOut})`;
+        g.lineWidth = (seg.branch ? 1.1 : 2.1) * unit;
+        g.stroke();
+
+        // Bloom contribution
+        bg.strokeStyle = i % 3 === 0
+          ? `rgba(255, 58, 118, ${0.8 * fadeOut})`
+          : `rgba(184, 92, 255, ${0.9 * fadeOut})`;
+        bg.lineWidth = (seg.branch ? 4 : 7) * unit;
+        bg.beginPath();
+        bg.moveTo(x1, y1);
+        bg.lineTo(x2, y2);
+        bg.stroke();
+      }
+    }
+    bg.restore();
+    g.restore();
+  }
+
+  // =========================================================================
+  // Act 3: Colossal Curved Crescent Ghost Slash & Shadow Force Blast
+  // =========================================================================
+  function drawGhostSlash(g, bg, progress, angle, cx, cy, length, curvature) {
+    if (progress <= 0 || progress >= 1) return;
+    const sweep = easeOutExpo(clamp(progress * 2.15, 0, 1));
+    const fade = 1 - smoothstep(0.30, 1.0, progress);
+    if (fade <= 0.01) return;
+
+    const halfL = length * 0.5;
+    const startX = -halfL;
+    const endX = lerp(-halfL, halfL, sweep);
+    const maxThick = (66 * Math.sin(clamp(progress * 1.35, 0, 1) * Math.PI) + 20) * unit * fade;
+
+    // Draw a curved scythe-like crescent blade with sharp tapered tips
+    const renderCrescent = (targetCtx, thickMult, offsetY, fillStyle) => {
+      targetCtx.save();
+      targetCtx.translate(cx, cy);
+      targetCtx.rotate(angle);
+      const tW = maxThick * thickMult;
+      const midX = (startX + endX) * 0.5;
+      targetCtx.beginPath();
+      targetCtx.moveTo(startX, offsetY);
+      targetCtx.quadraticCurveTo(midX, -curvature * 1.35 - tW + offsetY, endX, offsetY);
+      targetCtx.quadraticCurveTo(midX, -curvature * 0.72 + tW * 0.55 + offsetY, startX, offsetY);
+      targetCtx.closePath();
+      targetCtx.fillStyle = fillStyle;
+      targetCtx.fill();
+      targetCtx.restore();
+    };
+
+    // Secondary trailing claw arcs flanking the primary ghost slash
+    renderCrescent(g, 0.34, -42 * unit, `rgba(142, 54, 255, ${0.58 * fade})`);
+    renderCrescent(g, 0.28, 38 * unit, `rgba(255, 42, 96, ${0.46 * fade})`);
+
+    // Outer deep violet plasma wake
+    renderCrescent(g, 1.65, 0, `rgba(128, 38, 245, ${0.56 * fade})`);
+    // Electric purple-lavender razor rim
+    renderCrescent(g, 1.08, 0, `rgba(210, 134, 255, ${0.9 * fade})`);
+    // Iconic pitch-black obsidian Shadow Force void core!
+    renderCrescent(g, 0.68, 0, `rgba(7, 2, 16, ${0.96 * fade})`);
+    // Sharp incandescent lavender-white inner filament
+    renderCrescent(g, 0.16, -4 * unit, `rgba(248, 232, 255, ${0.88 * fade})`);
+
+    // Controlled deep violet + crimson bloom emission
+    renderCrescent(bg, 1.75, 0, `rgba(146, 48, 255, ${0.82 * fade})`);
+    renderCrescent(bg, 0.75, 0, `rgba(245, 52, 118, ${0.48 * fade})`);
+  }
+
+  function drawShadowForceBlast(g, bg, t, blastT) {
+    // blastT runs 0..1 across 17.22s -> 21.4s
+    if (blastT <= 0 || blastT >= 1) return;
+    // Framed on right-center so Giratina's erupting golden crown & wings stay boldly visible on the left!
+    const cx = W * 0.65;
+    const cy = H * 0.50;
+    const maxR = Math.hypot(W, H) * 0.86;
+
+    const expand = easeOutExpo(clamp(blastT * 1.35, 0, 1));
+    const fade = 1 - smoothstep(0.42, 1.0, blastT);
+    const coreFade = 1 - smoothstep(0.10, 0.72, blastT);
+
+    g.save();
+    bg.save();
+
+    // 1. Deep violet & crimson radial light-rays bursting from the dark blast vortex
+    if (coreFade > 0.01) {
+      const rayCount = 16;
+      for (let i = 0; i < rayCount; i++) {
+        const ang = (i / rayCount) * TWO_PI + blastT * 0.45 + (i % 2) * 0.08;
+        const rLen = maxR * (0.42 + (i % 3) * 0.22) * expand;
+        const rSpread = 0.04 + (i % 2) * 0.022;
+        const rayG = bg.createRadialGradient(cx, cy, 12, cx, cy, rLen);
+        rayG.addColorStop(0, `rgba(218, 168, 255, ${0.48 * coreFade})`);
+        rayG.addColorStop(0.36, i % 3 === 0
+          ? `rgba(230, 32, 86, ${0.38 * coreFade})`
+          : `rgba(136, 46, 245, ${0.48 * coreFade})`);
+        rayG.addColorStop(1, 'rgba(30, 6, 68, 0)');
+        bg.fillStyle = rayG;
+        bg.beginPath();
+        bg.moveTo(cx, cy);
+        bg.arc(cx, cy, rLen, ang - rSpread, ang + rSpread);
+        bg.closePath();
+        bg.fill();
+      }
+    }
+
+    // 2. Swirling obsidian-black & electric-violet Ghost Vortex ribbons
+    for (let i = 0; i < vortexRibbons.length; i++) {
+      const vr = vortexRibbons[i];
+      const lp = clamp((blastT - vr.delay) / (1 - vr.delay), 0, 1);
+      if (lp <= 0) continue;
+      const vFade = Math.sin(lp * Math.PI) * fade;
+      const rOut = maxR * 0.80 * easeOutCubic(lp);
+
+      g.beginPath();
+      const segs = 14;
+      for (let s = 0; s <= segs; s++) {
+        const f = s / segs;
+        const rr = rOut * (0.08 + f * 0.92);
+        const aa = vr.baseAng + vr.twist * f + lp * 2.5;
+        const px = cx + Math.cos(aa) * rr;
+        const py = cy + Math.sin(aa) * rr * 0.76;
+        if (s === 0) g.moveTo(px, py);
+        else g.lineTo(px, py);
+      }
+      // Bold obsidian pitch-black shadow fire outer ribbon
+      g.strokeStyle = `rgba(7, 2, 16, ${0.88 * vFade})`;
+      g.lineWidth = vr.width * 1.25 * unit * (1.2 - lp * 0.55);
+      g.lineCap = 'round';
+      g.stroke();
+
+      // Electric purple / crimson energy vein inside ribbon
+      g.strokeStyle = vr.isCrimson
+        ? `rgba(255, 48, 98, ${0.76 * vFade})`
+        : `rgba(166, 78, 255, ${0.86 * vFade})`;
+      g.lineWidth = vr.width * 0.32 * unit * (1.1 - lp * 0.45);
+      g.stroke();
+
+      bg.beginPath();
+      for (let s = 0; s <= segs; s++) {
+        const f = s / segs;
+        const rr = rOut * (0.08 + f * 0.92);
+        const aa = vr.baseAng + vr.twist * f + lp * 2.5;
+        const px = cx + Math.cos(aa) * rr;
+        const py = cy + Math.sin(aa) * rr * 0.76;
+        if (s === 0) bg.moveTo(px, py);
+        else bg.lineTo(px, py);
+      }
+      bg.strokeStyle = vr.isCrimson
+        ? `rgba(240, 38, 86, ${0.52 * vFade})`
+        : `rgba(148, 56, 255, ${0.65 * vFade})`;
+      bg.lineWidth = vr.width * 0.52 * unit;
+      bg.stroke();
+    }
+
+    // 3. Expanding concentric Shadow Force shockwave rings (obsidian + violet contrast)
+    [0.0, 0.11, 0.22].forEach((delay, idx) => {
+      const rp = clamp((blastT - delay) / (0.86 - delay), 0, 1);
+      if (rp <= 0 || rp >= 1) return;
+      const rr = maxR * 0.92 * easeOutCubic(rp);
+      const rf = (1 - rp) * (1 - rp);
+
+      // Thick dark obsidian outer shock band
+      g.strokeStyle = `rgba(8, 3, 18, ${0.86 * rf})`;
+      g.lineWidth = (26 - idx * 5) * unit * rf + 2;
+      g.beginPath();
+      g.ellipse(cx, cy, rr, rr * 0.72, -0.18, 0, TWO_PI);
+      g.stroke();
+
+      // Electric purple / crimson rim inside the black shockwave
+      g.strokeStyle = idx === 1
+        ? `rgba(255, 54, 108, ${0.78 * rf})`
+        : `rgba(176, 88, 255, ${0.9 * rf})`;
+      g.lineWidth = (10 - idx * 2) * unit * rf + 1.5;
+      g.beginPath();
+      g.ellipse(cx, cy, rr * 0.985, rr * 0.708, -0.18, 0, TWO_PI);
+      g.stroke();
+
+      // Controlled bloom ring
+      bg.strokeStyle = idx === 1
+        ? `rgba(245, 42, 96, ${0.62 * rf})`
+        : `rgba(156, 62, 255, ${0.78 * rf})`;
+      bg.lineWidth = (20 - idx * 4) * unit * rf + 2;
+      bg.beginPath();
+      bg.ellipse(cx, cy, rr, rr * 0.72, -0.18, 0, TWO_PI);
+      bg.stroke();
+    });
+
+    // 4. Abyssal Black-Hole Singularity Core rimmed with blazing violet & crimson light!
+    // Keeps pitch-black center unmistakably dark while radiating lush purple bloom outward
+    if (coreFade > 0.01) {
+      const coreR = (155 + expand * 115) * unit;
+      const cg = g.createRadialGradient(cx, cy, 4, cx, cy, coreR);
+      cg.addColorStop(0.0, `rgba(4, 1, 10, ${0.96 * coreFade})`);
+      cg.addColorStop(0.32, `rgba(14, 4, 30, ${0.92 * coreFade})`);
+      cg.addColorStop(0.46, `rgba(240, 204, 255, ${0.92 * coreFade})`);
+      cg.addColorStop(0.62, `rgba(146, 48, 255, ${0.68 * coreFade})`);
+      cg.addColorStop(0.84, `rgba(220, 28, 78, ${0.26 * coreFade})`);
+      cg.addColorStop(1.0, 'rgba(20, 4, 42, 0)');
+      g.fillStyle = cg;
+      g.beginPath();
+      g.arc(cx, cy, coreR, 0, TWO_PI);
+      g.fill();
+
+      // Ring-shaped bloom around the black singularity so the black core is NOT washed out to flat white!
+      const bcg = bg.createRadialGradient(cx, cy, coreR * 0.22, cx, cy, coreR * 1.38);
+      bcg.addColorStop(0.0, 'rgba(0, 0, 0, 0)');
+      bcg.addColorStop(0.28, `rgba(218, 152, 255, ${0.72 * coreFade})`);
+      bcg.addColorStop(0.55, `rgba(146, 48, 255, ${0.68 * coreFade})`);
+      bcg.addColorStop(0.82, `rgba(235, 34, 88, ${0.32 * coreFade})`);
+      bcg.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      bg.fillStyle = bcg;
+      bg.beginPath();
+      bg.arc(cx, cy, coreR * 1.38, 0, TWO_PI);
+      bg.fill();
+    }
+
+    // 5. Flying shadow shards, violet sparks & crimson embers
+    for (let i = 0; i < blastParticles.length; i++) {
+      const p = blastParticles[i];
+      const lp = clamp((blastT - p.delay * 0.45) / (1 - p.delay * 0.45), 0, 1);
+      if (lp <= 0) continue;
+      const pFade = (1 - smoothstep(0.45, 1.0, lp)) * smoothstep(0, 0.08, lp);
+      if (pFade <= 0.01) continue;
+
+      const dist = maxR * p.speed * easeOutCubic(lp);
+      const ang = p.ang + p.curve * lp * 0.65;
+      const px = cx + Math.cos(ang) * dist;
+      const py = cy + Math.sin(ang) * dist * 0.82;
+      const sz = p.size * unit * (1 - lp * 0.45);
+
+      if (p.type < 0.36) {
+        // Obsidian shadow crystal shard
+        g.save();
+        g.translate(px, py);
+        g.rotate(ang + lp * p.spin);
+        g.fillStyle = `rgba(10, 5, 22, ${0.95 * pFade})`;
+        g.strokeStyle = `rgba(176, 98, 255, ${0.78 * pFade})`;
+        g.lineWidth = 1.2;
+        g.beginPath();
+        g.moveTo(sz * 1.6, 0);
+        g.lineTo(-sz * 0.4, sz * 0.68);
+        g.lineTo(-sz * 1.15, 0);
+        g.lineTo(-sz * 0.4, -sz * 0.68);
+        g.closePath();
+        g.fill();
+        g.stroke();
+        g.restore();
+      } else if (p.type < 0.76) {
+        // Blazing violet plasma streak
+        const prevDist = maxR * p.speed * easeOutCubic(Math.max(0, lp - 0.045));
+        const ppx = cx + Math.cos(ang) * prevDist;
+        const ppy = cy + Math.sin(ang) * prevDist * 0.82;
+        g.strokeStyle = `rgba(214, 158, 255, ${0.9 * pFade})`;
+        g.lineWidth = Math.max(1.2, sz * 0.46);
+        g.lineCap = 'round';
+        g.beginPath();
+        g.moveTo(ppx, ppy);
+        g.lineTo(px, py);
+        g.stroke();
+
+        bg.strokeStyle = `rgba(154, 62, 255, ${0.72 * pFade})`;
+        bg.lineWidth = Math.max(2.2, sz * 0.82);
+        bg.beginPath();
+        bg.moveTo(ppx, ppy);
+        bg.lineTo(px, py);
+        bg.stroke();
+      } else {
+        // Glowing crimson-gold ember
+        g.fillStyle = `rgba(255, 76, 118, ${0.92 * pFade})`;
+        g.beginPath();
+        g.arc(px, py, Math.max(1.2, sz * 0.42), 0, TWO_PI);
+        g.fill();
+
+        bg.fillStyle = `rgba(245, 34, 82, ${0.62 * pFade})`;
+        bg.beginPath();
+        bg.arc(px, py, Math.max(2.2, sz * 0.85), 0, TWO_PI);
+        bg.fill();
+      }
+    }
+
+    bg.restore();
+    g.restore();
+  }
+
+  // =========================================================================
+  // Master Choreography State Machine (26.0s Seamless Loop)
+  // =========================================================================
+  function computeSceneState(t) {
+    const loopPhase = (t / LOOP_DURATION) * TWO_PI;
+
+    // Default / base state (t = 0.0s & t = 26.0s exact match!)
+    let camZoom = 1.0 + Math.sin(loopPhase) * 0.015;
+    let camX = Math.sin(loopPhase) * 10 * unit;
+    let camY = Math.cos(loopPhase) * 6 * unit;
+    let shakeAmp = 0;
+
+    let darkness = 0;
+    let blastGlow = 0;
+    let impactFlash = 0;
+
+    // Giratina default hover state
+    let gX = W * 0.44;
+    let gY = H * 0.49 + Math.sin(loopPhase * 2) * 11 * unit;
+    let gScale = 0.96;
+    let gAlpha = 1.0;
+    let gGhostAura = 0.0;
+    let gWingFlare = 0.12 + 0.08 * Math.sin(loopPhase * 2);
+    let gPoseMode = 'hover';
+    let gPoseBlend = 0;
+    let gEyeGlow = 0.85;
+    let gHeadTilt = Math.sin(loopPhase * 2) * 0.05;
+    let gClipRift = null;
+
+    // Rift portal state
+    let riftOpen = 0;
+    let riftX = W * 0.63;
+    let riftY = H * 0.49;
+    let riftW = 92 * unit;
+    let riftH = 390 * unit;
+    let riftIntensity = 1.0;
+
+    // Act 2 eyes & cracks
+    let darkEyesAmt = 0;
+    let darkEyesFlare = 0;
+    let crackProg = 0;
+    let crackFade = 0;
+
+    // Act 3 slashes & blast
+    let slash1Prog = 0;
+    let slash2Prog = 0;
+    let blastT = 0;
+
+    // UI phase tracking
+    let actIndex = 0;
+    let phaseText = 'I. やぶれた世界 — 異次元潜行';
+    let dotClass = '';
+    let climaxOpacity = 0;
+
+    // ---------------------------------------------------------------------
+    // ACT 1: Vanishing into the Shadow Portal (4.2s -> 10.6s)
+    // ---------------------------------------------------------------------
+    if (t >= 4.2 && t < 10.6) {
+      actIndex = 0;
+      phaseText = 'I. 影の裂け目 — シャドーダイブ潜行';
+      dotClass = '';
+
+      // Portal tears open (4.3s -> 6.0s), holds open while Giratina slips in, snaps shut (9.5s -> 10.5s)
+      const openIn = smootherstep(4.3, 6.0, t);
+      const openOut = 1 - smootherstep(9.5, 10.5, t);
+      riftOpen = openIn * openOut;
+
+      // Subtle camera focus toward the portal
+      const focus = smootherstep(4.4, 6.8, t) * (1 - smootherstep(9.6, 10.6, t));
+      camZoom += focus * 0.055;
+      camX += focus * 24 * unit;
+
+      // Giratina coils back (4.2s -> 5.6s), then glides & turns translucent into the jagged rift (5.6s -> 9.6s)
+      if (t < 5.6) {
+        const prep = smootherstep(4.2, 5.6, t);
+        gX = lerp(W * 0.44, W * 0.37, prep);
+        gY = lerp(gY, H * 0.495, prep);
+        gWingFlare = lerp(gWingFlare, 0.42, prep);
+        gGhostAura = prep * 0.45;
+        gEyeGlow = 0.85 + prep * 0.55;
+        shakeAmp = prep * 1.8;
+      } else {
+        const diveP = easeInOutQuart(clamp((t - 5.6) / 3.9, 0, 1));
+        gPoseMode = 'dive';
+        gPoseBlend = smoothstep(5.6, 6.6, t);
+        gX = lerp(W * 0.37, riftX + 410 * unit, diveP);
+        gY = H * 0.495 + Math.sin(diveP * Math.PI) * -12 * unit;
+        // Turns semi-transparent & spectral as it slips segment-by-segment into the rift!
+        gAlpha = lerp(1.0, 0.40, smoothstep(5.8, 7.3, t)) * (1 - smoothstep(9.0, 9.65, t));
+        gGhostAura = 0.45 + 0.55 * smoothstep(5.8, 7.2, t);
+        gWingFlare = lerp(0.42, 0.14, diveP);
+        gEyeGlow = 1.4;
+        gClipRift = { rx: riftX, ry: riftY, height: riftH, t, side: 'left' };
+        shakeAmp = (1 - diveP) * 2.2 + smoothstep(9.45, 9.7, t) * (1 - smoothstep(9.7, 10.3, t)) * 5.0;
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // ACT 2: Darkness & Glowing Red Eyes — Tension Beat (10.6s -> 15.8s)
+    // ---------------------------------------------------------------------
+    else if (t >= 10.6 && t < 15.8) {
+      actIndex = 1;
+      phaseText = 'II. 漆黒の静寂 — 紅い眼光';
+      dotClass = 'crimson';
+      gAlpha = 0; // Giratina is completely vanished in the shadow dimension
+
+      // Darkness engulfs the Distortion World
+      darkness = smootherstep(10.6, 12.1, t) * 0.96;
+
+      // Slow tense creep-in camera
+      const creep = smootherstep(10.8, 15.6, t);
+      camZoom = 1.0 + creep * 0.14;
+      camX = 0;
+      camY = 0;
+
+      // Glowing crimson eyes appear alone in the pitch-black void (12.1s -> 15.8s)
+      darkEyesAmt = smootherstep(12.0, 13.0, t);
+      darkEyesFlare = smootherstep(14.55, 15.75, t);
+
+      // Hairline purple/crimson dimensional cracks spiderweb outward right before eruption
+      crackProg = smoothstep(14.75, 15.78, t);
+      crackFade = smoothstep(14.75, 15.05, t);
+      shakeAmp = Math.pow(darkEyesFlare, 2) * 8.5;
+    }
+
+    // ---------------------------------------------------------------------
+    // ACT 3: Rift Eruption & Colossal Shadow Force Slash/Blast (15.8s -> 21.8s)
+    // ---------------------------------------------------------------------
+    else if (t >= 15.8 && t < 21.8) {
+      actIndex = 2;
+      phaseText = 'III. 影撃 — シャドーダイブ';
+      dotClass = 'gold';
+
+      // Darkness violently blows away on eruption
+      darkness = (1 - easeOutCubic(clamp((t - 15.8) / 0.75, 0, 1))) * 0.96;
+
+      // Residual cracks blaze briefly and vanish
+      crackProg = 1.0;
+      crackFade = 1 - smoothstep(15.85, 17.1, t);
+
+      // Huge eruption rift tears wide open on left-center (15.8s -> 20.6s)
+      riftX = W * 0.24;
+      riftY = H * 0.49;
+      riftW = 155 * unit;
+      riftH = 490 * unit;
+      riftOpen = easeOutExpo(clamp((t - 15.8) / 0.45, 0, 1)) * (1 - smootherstep(18.5, 20.6, t));
+      riftIntensity = 1.4;
+
+      // Giratina erupts forward dramatically out of the rift!
+      const emerge = easeOutCubic(clamp((t - 15.85) / 0.85, 0, 1));
+      const settle = smootherstep(19.5, 21.8, t);
+
+      gPoseMode = 'erupt';
+      gPoseBlend = emerge * (1 - settle);
+      gAlpha = smoothstep(15.82, 16.12, t);
+      gX = lerp(W * 0.20, W * 0.36, emerge) + lerp(0, W * 0.08, settle);
+      gY = lerp(H * 0.51, H * 0.48, emerge) + Math.sin((t - 15.8) * 3.2) * 8 * unit * (1 - settle);
+      gScale = lerp(0.62, 1.15, emerge) - settle * 0.14;
+      gWingFlare = lerp(0.3, 1.0, emerge) * (1 - settle * 0.65);
+      gGhostAura = (1 - smoothstep(15.85, 17.2, t)) * 0.85 + (1 - settle) * 0.22;
+      gEyeGlow = 1.8 - settle * 0.65;
+      gHeadTilt = lerp(-0.14, 0.08, emerge) * (1 - settle);
+
+      // Slashes & Colossal Blast timing
+      slash1Prog = clamp((t - 16.45) / 1.45, 0, 1);
+      slash2Prog = clamp((t - 16.92) / 1.45, 0, 1);
+      blastT = clamp((t - 17.22) / 4.2, 0, 1);
+
+      // Lush violet-magenta environment bounce glow during blast
+      blastGlow = Math.sin(clamp((t - 16.3) / 4.5, 0, 1) * Math.PI) * 1.05;
+
+      // Crisp brief flash moments on eruption, Slash 1, Slash 2, and Blast core
+      const f0 = Math.exp(-Math.pow((t - 15.88) / 0.10, 2)) * 0.34;
+      const f1 = Math.exp(-Math.pow((t - 16.52) / 0.08, 2)) * 0.42;
+      const f2 = Math.exp(-Math.pow((t - 16.98) / 0.08, 2)) * 0.46;
+      const f3 = Math.exp(-Math.pow((t - 17.32) / 0.13, 2)) * 0.52;
+      impactFlash = clamp(f0 + f1 + f2 + f3, 0, 0.62);
+
+      // Dynamic punch-zoom & heavy cinematic screen shake
+      const punch = Math.exp(-(t - 15.85) * 2.2) * 0.16 + Math.exp(-Math.max(0, t - 17.25) * 1.6) * (t >= 17.25 ? 0.14 : 0);
+      camZoom = 1.02 + punch * (1 - settle);
+      const sErupt = Math.exp(-(t - 15.85) * 3.4) * 16;
+      const sSlash1 = t >= 16.45 ? Math.exp(-(t - 16.45) * 4.2) * 20 : 0;
+      const sSlash2 = t >= 16.92 ? Math.exp(-(t - 16.92) * 4.2) * 22 : 0;
+      const sBlast = t >= 17.22 ? Math.exp(-(t - 17.22) * 1.45) * 30 : 0;
+      shakeAmp = (sErupt + sSlash1 + sSlash2 + sBlast) * (1 - settle * 0.85);
+
+      // Climax banner smoothly pulses in on the Shadow Force strike
+      climaxOpacity = smoothstep(16.45, 16.9, t) * (1 - smootherstep(19.4, 20.6, t));
+    }
+
+    // ---------------------------------------------------------------------
+    // ACT 4: Quiet Reset & Seamless Loop Return (21.8s -> 26.0s)
+    // ---------------------------------------------------------------------
+    else if (t >= 21.8) {
+      actIndex = 3;
+      phaseText = 'IV. 収束 — 虚空への回帰';
+      dotClass = '';
+
+      const ret = smootherstep(21.8, 25.8, t);
+      // Smoothly glide from end of Act 3 back to exact t = 0.0s coordinates!
+      const startX = W * 0.44;
+      const targetX = W * 0.44;
+      const startY = H * 0.48;
+      const targetY = H * 0.49 + Math.sin(loopPhase * 2) * 11 * unit;
+
+      gX = lerp(startX, targetX, ret);
+      gY = lerp(startY, targetY, ret);
+      gScale = lerp(1.01, 0.96, ret);
+      gWingFlare = lerp(0.35, 0.12 + 0.08 * Math.sin(loopPhase * 2), ret);
+      gEyeGlow = lerp(1.15, 0.85, ret);
+      gHeadTilt = lerp(0.0, Math.sin(loopPhase * 2) * 0.05, ret);
+      camZoom = lerp(1.02, 1.0 + Math.sin(loopPhase) * 0.015, ret);
+    }
+
+    // Apply multi-frequency organic screen shake
+    const shakeX = shakeAmp > 0.05
+      ? (Math.sin(t * 68.3) * 0.55 + Math.cos(t * 113.7) * 0.45) * shakeAmp * unit
+      : 0;
+    const shakeY = shakeAmp > 0.05
+      ? (Math.cos(t * 74.9) * 0.55 + Math.sin(t * 129.1) * 0.45) * shakeAmp * unit
+      : 0;
+
+    return {
+      t, loopPhase,
+      camZoom, camX: camX + shakeX, camY: camY + shakeY, shakeAmp,
+      darkness, blastGlow, impactFlash,
+      giratina: {
+        x: gX, y: gY, scale: gScale, t, loopPhase,
+        poseMode: gPoseMode, poseBlend: gPoseBlend,
+        wingFlare: gWingFlare, alpha: gAlpha,
+        ghostAura: gGhostAura, eyeGlow: gEyeGlow,
+        facing: 1, headTilt: gHeadTilt, clipRift: gClipRift
+      },
+      rift: { open: riftOpen, x: riftX, y: riftY, w: riftW, h: riftH, intensity: riftIntensity },
+      darkEyesAmt, darkEyesFlare, crackProg, crackFade,
+      slash1Prog, slash2Prog, blastT,
+      ui: { actIndex, phaseText, dotClass, climaxOpacity }
+    };
+  }
+
+  // =========================================================================
+  // Main Render Loop with Multi-Pass Additive Light Bloom
+  // =========================================================================
+  let startTime = null;
+  let lastActIdx = -1;
+
+  function updateUI(t, ui, darkness) {
+    const pct = (t / LOOP_DURATION) * 100;
+    progressFill.style.width = `${pct.toFixed(2)}%`;
+
+    if (ui.actIndex !== lastActIdx) {
+      lastActIdx = ui.actIndex;
+      phaseLabel.textContent = ui.phaseText;
+      phaseDot.className = 'phase-dot' + (ui.dotClass ? ' ' + ui.dotClass : '');
+      actPips.forEach((pip, idx) => {
+        pip.className = 'act-pip' + (idx === ui.actIndex ? ' active' + (ui.dotClass ? ' ' + ui.dotClass : '') : '');
+      });
+    }
+
+    // Dim corner chrome subtly during Act 2 pitch-black tension beat so the glowing red eyes command full attention
+    const chromeAlpha = 1 - darkness * 0.58;
+    titleLockup.style.opacity = chromeAlpha.toFixed(3);
+    metaCorner.style.opacity = (chromeAlpha * 0.9).toFixed(3);
+
+    // Climax banner animation
+    climaxBanner.style.opacity = ui.climaxOpacity.toFixed(3);
+    const cScale = 0.96 + ui.climaxOpacity * 0.06;
+    climaxBanner.style.transform = `translateX(-50%) scale(${cScale.toFixed(4)})`;
+  }
+
+  function renderFrame(now) {
+    if (startTime === null) startTime = now;
+    const elapsed = ((now - startTime) * 0.001) % LOOP_DURATION;
+    const state = computeSceneState(elapsed);
+
+    // Clear bloom buffers & set transform so world coordinates map seamlessly to bloom buffer
+    bCtxA.setTransform(1, 0, 0, 1, 0, 0);
+    bCtxA.clearRect(0, 0, bloomA.width, bloomA.height);
+    const bScaleX = bloomA.width / W;
+    const bScaleY = bloomA.height / H;
+
+    ctx.save();
+    bCtxA.save();
+
+    // Apply virtual camera zoom + shake identically to main stage & bloom buffer
+    const applyCam = (target, sx, sy) => {
+      target.scale(sx, sy);
+      target.translate(W * 0.5 + state.camX, H * 0.5 + state.camY);
+      target.scale(state.camZoom, state.camZoom);
+      target.translate(-W * 0.5, -H * 0.5);
+    };
+    applyCam(ctx, 1, 1);
+    applyCam(bCtxA, bScaleX, bScaleY);
+
+    // 1. Distortion World Environment
+    drawDistortionWorld(ctx, bCtxA, elapsed, state.loopPhase, state);
+
+    // 2. Shadow Portal (behind Giratina when erupting, or split-composited when diving)
+    const isDiving = state.giratina.clipRift !== null;
+    if (state.rift.open > 0.005) {
+      drawShadowRift(
+        ctx, bCtxA,
+        state.rift.x, state.rift.y,
+        state.rift.w, state.rift.h,
+        state.rift.open, elapsed, state.rift.intensity
+      );
+    }
+
+    // 3. Giratina (Origin Forme)
+    drawGiratinaOrigin(ctx, bCtxA, state.giratina);
+
+    // Subtle foreground rift seam plasma wisps when Giratina is actively crossing the dimensional tear
+    if (isDiving && state.rift.open > 0.05) {
+      ctx.save();
+      const rx = state.rift.x;
+      const ry = state.rift.y;
+      const hh = state.rift.h * 0.42 * state.rift.open;
+      for (let i = 0; i < 8; i++) {
+        const sy = ry + Math.sin(elapsed * 4.8 + i * 1.1) * hh;
+        const sx = getRiftCenterX(rx, sy, ry, state.rift.h, elapsed);
+        const wLen = (16 + (i % 3) * 10) * unit;
+        ctx.strokeStyle = i % 3 === 0 ? 'rgba(255, 76, 128, 0.72)' : 'rgba(208, 134, 255, 0.76)';
+        ctx.lineWidth = (1.2 + (i % 2) * 0.9) * unit;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(sx - wLen, sy + Math.sin(i + elapsed * 6) * 8 * unit);
+        ctx.quadraticCurveTo(sx - wLen * 0.35, sy - 6 * unit, sx + 4 * unit, sy);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 4. Act 2 Pitch-Black Tension Darkness Overlay
+    if (state.darkness > 0.004) {
+      ctx.fillStyle = `rgba(3, 2, 7, ${state.darkness})`;
+      ctx.fillRect(-120, -120, W + 240, H + 240);
+    }
+
+    // 5. Act 2 Glowing Red Eyes in Darkness & Pre-Eruption Cracks
+    drawShatterCracks(ctx, bCtxA, state.crackProg, state.crackFade);
+    drawDarknessEyes(ctx, bCtxA, elapsed, state.darkEyesAmt, state.darkEyesFlare);
+
+    // 6. Act 3 Colossal Curved Ghost Slashes & Shadow Force Blast
+    const slashLen = Math.hypot(W, H) * 0.94;
+    drawGhostSlash(ctx, bCtxA, state.slash1Prog, -0.56, W * 0.64, H * 0.49, slashLen, 88 * unit);
+    drawGhostSlash(ctx, bCtxA, state.slash2Prog, 0.60, W * 0.65, H * 0.50, slashLen * 1.02, -82 * unit);
+    drawShadowForceBlast(ctx, bCtxA, elapsed, state.blastT);
+
+    bCtxA.restore();
+    ctx.restore();
+
+    // 7. Multi-Scale Hardware-Smooth Additive Light Bloom Composite!
+    // Downsample bloomA -> bloomB for wide soft atmospheric halo
+    bCtxB.setTransform(1, 0, 0, 1, 0, 0);
+    bCtxB.clearRect(0, 0, bloomB.width, bloomB.height);
+    bCtxB.imageSmoothingEnabled = true;
+    bCtxB.drawImage(bloomA, 0, 0, bloomB.width, bloomB.height);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.imageSmoothingEnabled = true;
+
+    // Pass 1: Crisp inner bloom
+    ctx.globalAlpha = 0.66 + state.blastGlow * 0.18;
+    if ('filter' in ctx) ctx.filter = 'blur(6px)';
+    ctx.drawImage(bloomA, 0, 0, W, H);
+
+    // Pass 2: Wide cinematic atmospheric bloom
+    ctx.globalAlpha = 0.54 + state.blastGlow * 0.24;
+    if ('filter' in ctx) ctx.filter = 'blur(18px)';
+    ctx.drawImage(bloomB, 0, 0, W, H);
+
+    if ('filter' in ctx) ctx.filter = 'none';
+    ctx.restore();
+
+    // 8. Impact flash & subtle purple-white bloom wash on Shadow Force hits
+    if (state.impactFlash > 0.01) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      const fg = ctx.createRadialGradient(W * 0.60, H * 0.50, 10, W * 0.60, H * 0.50, Math.hypot(W, H) * 0.72);
+      fg.addColorStop(0, `rgba(248, 224, 255, ${state.impactFlash * 0.56})`);
+      fg.addColorStop(0.42, `rgba(156, 62, 255, ${state.impactFlash * 0.42})`);
+      fg.addColorStop(1, `rgba(22, 5, 42, ${state.impactFlash * 0.14})`);
+      ctx.fillStyle = fg;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+
+    // 9. Update understated cinematic HUD
+    updateUI(elapsed, state.ui, state.darkness);
+
+    requestAnimationFrame(renderFrame);
+  }
+
+  requestAnimationFrame(renderFrame);
+})();
+</script>
+</body>
+</html>
